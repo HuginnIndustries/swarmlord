@@ -10,6 +10,8 @@ Domain: [swarmlord.dev](https://swarmlord.dev) (owned, planned customer-facing s
 
 V1 implemented and dogfooded; current release is **0.1.1**. Python 3.12 package, Typer CLI, Pydantic v2 schemas, Jinja2 strict templating, atomic packet writes, SQLite run history (readable via `swarmlord log <slug>`), and runner registry (manual / claude-code-interactive / sandcastle-docker). FastAPI server scaffold returns 501s, ready for V2. Tests, lint, format, and `mypy --strict` all pass; coverage gate at 80% with ~85% reported across 99 tests. Release notes in [`CHANGELOG.md`](CHANGELOG.md).
 
+**New here?** Read [`GUIDE.md`](GUIDE.md) — a 10-minute walkthrough from install through extracting a packet end-to-end.
+
 ```powershell
 # Install (editable)
 cd ~\Documents\GitHub\swarmlord
@@ -37,7 +39,7 @@ uv run swarmlord promote sample-packet --to discovery
 - [`templates/packet/`](templates/packet) — packet scaffolding the `swarmlord new` command copies when creating new packets. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
 - [`tests/`](tests) — unit + integration test suite (99 tests; ~85% coverage).
 - [`CHANGELOG.md`](CHANGELOG.md) — release notes in keepachangelog.com format.
-- `GUIDE.md` — packet-progression content carried from the originating packet.
+- [`GUIDE.md`](GUIDE.md) — 10-minute walkthrough for new users (install → first packet → lifecycle → extract → customizing gates → troubleshooting).
 - `THREAD_LOG.md` — running session log; append handoff entries here.
 
 ## V1 CLI surface
