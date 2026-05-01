@@ -73,3 +73,34 @@ def test_manual_runner_can_handle() -> None:
     runner = ManualRunner()
     assert runner.can_handle("manual")
     assert not runner.can_handle("sandcastle-docker")
+
+
+def test_manual_runner_clipboard_failure_emits_warning(tmp_path: Path) -> None:
+    """When the clipboard backend fails, the runner must surface a warning."""
+    written: list[str] = []
+    warnings: list[str] = []
+
+    def _fail(_: str) -> None:
+        raise RuntimeError("xclip not installed")
+
+    runner = ManualRunner(
+        clipboard=True,
+        clipboard_writer=_fail,
+        stdout_writer=written.append,
+        warn_writer=warnings.append,
+    )
+    asyncio.run(runner.run(_request(tmp_path)))
+    assert "hello prompt" in "".join(written)
+    assert any("clipboard unavailable" in w for w in warnings)
+
+
+def test_manual_runner_no_warning_when_clipboard_disabled(tmp_path: Path) -> None:
+    """If clipboard=False, no warning fires even though we wrote to stdout."""
+    warnings: list[str] = []
+    runner = ManualRunner(
+        clipboard=False,
+        stdout_writer=lambda _: None,
+        warn_writer=warnings.append,
+    )
+    asyncio.run(runner.run(_request(tmp_path)))
+    assert warnings == []

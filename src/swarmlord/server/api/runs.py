@@ -8,7 +8,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from fastapi import APIRouter
 
 
-def _build_router() -> APIRouter:  # pragma: no cover - V2 work
+def build_router() -> APIRouter:  # pragma: no cover - V2 work
     from fastapi import APIRouter, HTTPException
 
     router = APIRouter()
@@ -18,9 +18,3 @@ def _build_router() -> APIRouter:  # pragma: no cover - V2 work
         raise HTTPException(status_code=501, detail="V2 endpoint")
 
     return router
-
-
-try:  # pragma: no cover - optional import
-    router = _build_router()
-except ImportError:  # pragma: no cover
-    router = None  # type: ignore[assignment]

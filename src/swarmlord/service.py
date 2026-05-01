@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import re
 import shutil
 import subprocess
 import uuid
@@ -24,12 +25,15 @@ from swarmlord.core.errors import (
 )
 from swarmlord.core.gates import GateResult, evaluate_gate
 from swarmlord.core.models import (
+    AgentConfig,
     ExtractMdResolved,
     FileSectionFilled,
     GateConfig,
     PacketStatus,
     Predicate,
     RunRecord,
+    WorkflowDefinition,
+    WorkflowHooks,
     YamlFieldEmpty,
 )
 from swarmlord.core.phases import Phase
@@ -53,6 +57,10 @@ from swarmlord.runners.base import RunRequest, RunResult
 from swarmlord.runners.registry import RunnerRegistry, default_registry
 from swarmlord.templating.engine import render_prompt
 
+# A best-effort mapping from stage to the phase that fits work in that stage.
+# Used as a *fallback* when neither WORKFLOW.md nor status.current_phase tells
+# us what to render. This lets a packet with a stale current_phase still get
+# a sensible prompt rendered.
 PHASE_FOR_STAGE: dict[Stage, Phase] = {
     Stage.IDEA: Phase.IDEA,
     Stage.DISCOVERY: Phase.DISCOVERY,
@@ -62,12 +70,15 @@ PHASE_FOR_STAGE: dict[Stage, Phase] = {
     Stage.ARCHIVED: Phase.EXTRACTION,
 }
 
+# Slug shape: a date prefix is "YYYY-MM-" followed by a non-empty body.
+_DATE_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-")
+
 
 # --- Defaults --------------------------------------------------------------
 
 
 def default_gate_config() -> GateConfig:
-    """Built-in gates used when a packet has no ``WORKFLOW.md`` overrides."""
+    """Built-in gates used when a packet has no ``WORKFLOW.md`` at all."""
     return GateConfig(
         promote_to_spec_ready=[
             FileSectionFilled(
@@ -110,6 +121,26 @@ def default_gate_config() -> GateConfig:
     )
 
 
+def default_workflow_definition(
+    *,
+    runner_profile: str = "manual",
+    phase: Phase = Phase.DISCOVERY,
+    prompt_template: str = "",
+) -> WorkflowDefinition:
+    """The single source of truth for a ``WorkflowDefinition`` when no
+    ``WORKFLOW.md`` exists on disk. Combines :func:`default_gate_config`
+    with default hooks and agent config.
+    """
+    return WorkflowDefinition(
+        runner_profile=runner_profile,
+        phase=phase,
+        hooks=WorkflowHooks(),
+        agent=AgentConfig(),
+        gates=default_gate_config(),
+        prompt_template=prompt_template,
+    )
+
+
 def gate_predicates_for(target_stage: Stage, gates: GateConfig) -> list[Predicate]:
     if target_stage is Stage.SPEC_READY:
         return list(gates.promote_to_spec_ready)
@@ -138,7 +169,12 @@ def list_packets(
 
 
 def is_dispatchable(packet: DiscoveredPacket) -> bool:
-    """A packet is dispatchable if it isn't archived/extracted and has next actions."""
+    """A packet is dispatchable if it isn't terminal and has next actions.
+
+    EXTRACTED and ARCHIVED are both treated as terminal: an extracted packet
+    has moved its work to a separate repo, so the source packet shouldn't
+    show up in ``swarmlord next`` (the extracted repo is where work continues).
+    """
     if packet.status.stage in (Stage.ARCHIVED, Stage.EXTRACTED):
         return False
     return bool(packet.status.next_actions)
@@ -185,6 +221,11 @@ def template_root(repo_root: Path) -> Path:
         return Path(p)
 
 
+def _is_date_prefixed(slug: str) -> bool:
+    """Return True if ``slug`` already starts with ``YYYY-MM-``."""
+    return _DATE_PREFIX_RE.match(slug) is not None
+
+
 def new_packet(spec: NewPacketSpec) -> Path:
     """Scaffold a new packet under ``projects/<YYYY-MM-slug>/``.
 
@@ -192,9 +233,7 @@ def new_packet(spec: NewPacketSpec) -> Path:
     exists. Adds an INDEX entry on success.
     """
     folder_slug = (
-        spec.slug
-        if spec.slug[:7].count("-") == 1 and spec.slug[:7].replace("-", "").isdigit()
-        else f"{spec.today.strftime('%Y-%m')}-{spec.slug}"
+        spec.slug if _is_date_prefixed(spec.slug) else f"{spec.today.strftime('%Y-%m')}-{spec.slug}"
     )
     target = spec.repo_root / "projects" / folder_slug
     if target.exists():
@@ -231,6 +270,21 @@ def new_packet(spec: NewPacketSpec) -> Path:
 # --- Render ---------------------------------------------------------------
 
 
+def resolve_phase(bundle: PacketBundle, override: Phase | None = None) -> Phase:
+    """Resolve which phase to render against.
+
+    Precedence: explicit ``override`` (caller said so) > ``workflow.phase``
+    (packet says so via WORKFLOW.md) > ``status.current_phase`` (packet's
+    last-known phase pointer) > :data:`PHASE_FOR_STAGE` (sensible default
+    derived from the stage when nothing else is set).
+    """
+    if override is not None:
+        return override
+    if bundle.workflow is not None:
+        return bundle.workflow.phase
+    return bundle.status.current_phase
+
+
 def render_for_packet(
     repo_root: Path,
     bundle: PacketBundle,
@@ -241,9 +295,8 @@ def render_for_packet(
 ) -> str:
     """Render the prompt for ``bundle``'s current (or specified) phase."""
     workflow = bundle.workflow
+    target_phase = resolve_phase(bundle, override=phase)
     if workflow is None:
-        # A bare packet without WORKFLOW.md: fall back to a minimal prompt.
-        target_phase = phase or bundle.status.current_phase
         return _fallback_prompt(bundle.status, target_phase, repo_root, bundle.root)
     graph_report = bundle.status.memory.report_path if bundle.status.memory else None
     return render_prompt(
@@ -297,6 +350,13 @@ def promote(
 ) -> PromotionResult:
     """Run gates and transition the packet's stage.
 
+    Gate semantics:
+    * If WORKFLOW.md is present, its ``gates`` are authoritative — including
+      the empty-list case (declaring "no gates for this transition" is a
+      valid choice).
+    * If WORKFLOW.md is absent, the built-in defaults from
+      :func:`default_gate_config` apply.
+
     ``demote=True`` skips gates and requires a ``reason``. The transition is
     written to ``status.yaml``, ``THREAD_LOG.md``, and ``projects/INDEX.md``
     in that order; the on-disk packet is consistent at every step.
@@ -309,12 +369,10 @@ def promote(
 
     gates_to_run: list[Predicate] = []
     if not demote and is_forward(from_stage, target):
+        # WORKFLOW.md present → it is authoritative (including empty lists).
+        # WORKFLOW.md absent → fall back to defaults.
         gates = bundle.workflow.gates if bundle.workflow else default_gate_config()
         gates_to_run = gate_predicates_for(target, gates)
-        if not gates_to_run:
-            # Fall back to defaults if WORKFLOW.md exists but didn't provide
-            # any predicates for this transition.
-            gates_to_run = gate_predicates_for(target, default_gate_config())
 
     results = evaluate_gate(gates_to_run, bundle.root) if gates_to_run else []
     failures = [r for r in results if not r.passed]
@@ -349,6 +407,27 @@ def promote(
 # --- Run dispatch ---------------------------------------------------------
 
 
+def resolve_runner_profile(
+    bundle: PacketBundle,
+    override: str | None = None,
+    *,
+    fallback: str = "manual",
+) -> str:
+    """Resolve which runner profile to dispatch to.
+
+    Precedence: explicit ``override`` > ``status.runner_profile``
+    (per-packet pin) > ``workflow.runner_profile`` (declared in WORKFLOW.md)
+    > ``fallback`` (the registry's default-of-last-resort, ``"manual"``).
+    """
+    if override:
+        return override
+    if bundle.status.runner_profile:
+        return bundle.status.runner_profile
+    if bundle.workflow is not None:
+        return bundle.workflow.runner_profile
+    return fallback
+
+
 def make_run_record(
     bundle: PacketBundle,
     *,
@@ -378,13 +457,8 @@ async def dispatch_run(
     on_disk_today: date | None = None,
 ) -> tuple[RunResult, RunRecord]:
     """Render + dispatch + record. Updates ``status.phase_status`` on success."""
-    workflow = bundle.workflow
-    profile = (
-        runner_profile
-        or bundle.status.runner_profile
-        or (workflow.runner_profile if workflow else "manual")
-    )
-    target_phase = workflow.phase if workflow else bundle.status.current_phase
+    profile = resolve_runner_profile(bundle, runner_profile)
+    target_phase = resolve_phase(bundle)
     rendered = render_for_packet(repo_root, bundle, phase=target_phase, attempt=attempt)
     runner_registry = registry or default_registry()
     runner = runner_registry.resolve(profile)
@@ -395,11 +469,15 @@ async def dispatch_run(
         phase=target_phase,
         attempt=attempt,
     )
+    workflow = bundle.workflow or default_workflow_definition(
+        runner_profile=profile,
+        phase=target_phase,
+    )
     request = RunRequest(
         packet_slug=bundle.status.slug,
         packet_root=bundle.root,
         rendered_prompt=rendered,
-        workflow=workflow or _synthetic_workflow(profile, target_phase),
+        workflow=workflow,
     )
     try:
         result = await runner.run(request)
@@ -434,20 +512,6 @@ async def dispatch_run(
     return result, record
 
 
-def _synthetic_workflow(profile: str, phase: Phase):  # type: ignore[no-untyped-def]
-    """Build a minimal :class:`WorkflowDefinition` for packets without WORKFLOW.md."""
-    from swarmlord.core.models import AgentConfig, WorkflowDefinition, WorkflowHooks
-
-    return WorkflowDefinition(
-        runner_profile=profile,
-        phase=phase,
-        hooks=WorkflowHooks(),
-        agent=AgentConfig(),
-        gates=default_gate_config(),
-        prompt_template="",
-    )
-
-
 # --- Extract --------------------------------------------------------------
 
 
@@ -465,12 +529,7 @@ def extract_packet(
     init_git: bool = True,
     on_disk_today: date | None = None,
 ) -> ExtractionResult:
-    """Execute the EXTRACT.md flow into a new repo path.
-
-    Copies ``README.md``, ``GUIDE.md``, ``spec/``, ``workflow/``, ``skills/``,
-    ``THREAD_LOG.md``, and ``EXTRACT.md``. Does not overwrite an existing
-    target directory. Updates the source packet's stage and the INDEX.
-    """
+    """Execute the EXTRACT.md flow into a new repo path."""
     if target.exists():
         raise SwarmLordError(f"extract target already exists: {target}")
     target.mkdir(parents=True)

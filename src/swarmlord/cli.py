@@ -22,6 +22,10 @@ from swarmlord.core.stages import Stage
 from swarmlord.memory.graphify import run_graphify
 from swarmlord.packets.reader import load_packet
 from swarmlord.packets.writer import write_status
+from swarmlord.runners.claude_code import ClaudeCodeInteractiveRunner
+from swarmlord.runners.manual import ManualRunner
+from swarmlord.runners.registry import RunnerRegistry
+from swarmlord.runners.sandcastle import SandcastleDockerRunner
 from swarmlord.service import (
     NewPacketSpec,
     dispatch_run,
@@ -204,6 +208,19 @@ def render_cmd(
         console.print(rendered, end="", soft_wrap=True, highlight=False)
 
 
+def _cli_registry() -> RunnerRegistry:
+    """Build a CLI-flavored registry that surfaces clipboard warnings to stderr."""
+    return RunnerRegistry(
+        [
+            ManualRunner(
+                warn_writer=lambda msg: err_console.print(f"[yellow]{msg}[/yellow]"),
+            ),
+            ClaudeCodeInteractiveRunner(),
+            SandcastleDockerRunner(),
+        ]
+    )
+
+
 @app.command("run")
 def run_cmd(
     slug: str = typer.Argument(...),
@@ -221,7 +238,13 @@ def run_cmd(
             )
             return
         result, record = asyncio.run(
-            dispatch_run(_repo_root(), bundle, runner_profile=runner, attempt=attempt)
+            dispatch_run(
+                _repo_root(),
+                bundle,
+                runner_profile=runner,
+                attempt=attempt,
+                registry=_cli_registry(),
+            )
         )
     except SwarmLordError as exc:
         _handle(exc)

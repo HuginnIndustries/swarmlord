@@ -174,3 +174,120 @@ def test_extract_packet(repo_root: Path) -> None:
 def test_resolve_packet_missing(repo_root: Path) -> None:
     with pytest.raises(SwarmLordError):
         resolve_packet(repo_root, "nope")
+
+
+def test_promote_empty_workflow_gate_list_is_authoritative(repo_root: Path) -> None:
+    """If WORKFLOW.md declares an empty gate list, that means "no gates" — not "use defaults"."""
+    from swarmlord.service import promote
+    from tests.conftest import make_packet
+
+    workflow = """---
+runner_profile: manual
+phase: discovery
+gates:
+  promote_to_spec_ready: []
+---
+empty gates intentionally
+"""
+    root = make_packet(repo_root, stage=Stage.DISCOVERY, workflow_md=workflow)
+    bundle = load_packet(root)
+    # Default gates would fail (no Recommended Direction section). Empty
+    # list must be honored: promotion succeeds with no gates evaluated.
+    result = promote(repo_root, bundle, on_disk_today=date(2026, 5, 2))
+    assert result.to_stage is Stage.SPEC_READY
+    assert result.gate_results == []
+
+
+def test_new_packet_already_date_prefixed_slug(repo_root: Path) -> None:
+    from swarmlord.service import NewPacketSpec, new_packet
+
+    target = new_packet(
+        NewPacketSpec(
+            slug="2026-04-already-prefixed",
+            title="Already Prefixed",
+            summary="",
+            repo_root=repo_root,
+            today=date(2026, 5, 1),
+        )
+    )
+    assert target.name == "2026-04-already-prefixed"
+
+
+def test_new_packet_unprefixed_slug_gets_today_prefix(repo_root: Path) -> None:
+    from swarmlord.service import NewPacketSpec, new_packet
+
+    target = new_packet(
+        NewPacketSpec(
+            slug="needs-prefix",
+            title="Needs Prefix",
+            summary="",
+            repo_root=repo_root,
+            today=date(2026, 5, 1),
+        )
+    )
+    assert target.name == "2026-05-needs-prefix"
+
+
+def test_new_packet_slug_starting_with_digits_but_not_date_gets_prefix(
+    repo_root: Path,
+) -> None:
+    """A slug like '12-1234-foo' should still get a date prefix — it isn't a YYYY-MM."""
+    from swarmlord.service import NewPacketSpec, new_packet
+
+    target = new_packet(
+        NewPacketSpec(
+            slug="12-1234-suspicious",
+            title="Suspicious",
+            summary="",
+            repo_root=repo_root,
+            today=date(2026, 5, 1),
+        )
+    )
+    assert target.name == "2026-05-12-1234-suspicious"
+
+
+def test_resolve_runner_profile_precedence(repo_root: Path) -> None:
+    from swarmlord.service import resolve_runner_profile
+    from tests.conftest import make_packet
+
+    workflow = """---
+runner_profile: workflow-profile
+phase: discovery
+---
+"""
+    root = make_packet(
+        repo_root,
+        runner_profile="status-profile",
+        workflow_md=workflow,
+    )
+    bundle = load_packet(root)
+    # explicit override wins
+    assert resolve_runner_profile(bundle, override="cli-profile") == "cli-profile"
+    # then status.runner_profile
+    assert resolve_runner_profile(bundle) == "status-profile"
+
+
+def test_resolve_phase_uses_workflow_then_status_then_stage_default(repo_root: Path) -> None:
+    from swarmlord.service import resolve_phase
+    from tests.conftest import make_packet
+
+    # No workflow — falls back to status.current_phase.
+    root = make_packet(repo_root, stage=Stage.SPEC_READY, phase=Phase.BUILD_SPEC)
+    bundle = load_packet(root)
+    assert resolve_phase(bundle) is Phase.BUILD_SPEC
+
+    # Workflow phase wins over status.
+    workflow = """---
+runner_profile: manual
+phase: extraction
+---
+"""
+    root2 = make_packet(
+        repo_root,
+        slug="2026-05-w",
+        stage=Stage.SPEC_READY,
+        phase=Phase.BUILD_SPEC,
+        workflow_md=workflow,
+    )
+    bundle2 = load_packet(root2)
+    assert resolve_phase(bundle2) is Phase.EXTRACTION
