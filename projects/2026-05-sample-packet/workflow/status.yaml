@@ -1,0 +1,18 @@
+project_name: Sample Packet
+slug: 2026-05-sample-packet
+stage: idea
+current_phase: idea
+created: '2026-05-01'
+updated: '2026-05-01'
+summary: A test packet for demo
+next_actions:
+- Capture the raw idea in spec/idea.md.
+assumptions: []
+open_questions: []
+resolved_questions: []
+phase_status:
+  idea: in_progress
+  discovery: pending
+  build_spec: pending
+  extraction: pending
+owner_notes: []

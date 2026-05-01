@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import sqlite3
-import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -65,8 +64,13 @@ CREATE INDEX IF NOT EXISTS idx_transitions_packet ON transitions(packet_slug, at
 
 
 def default_db_path() -> Path:
-    """Resolve the default SQLite path for the current OS."""
-    if sys.platform == "win32":
+    """Resolve the default SQLite path for the current OS.
+
+    Uses ``os.name`` rather than ``sys.platform`` because mypy narrows
+    the latter at type-check time on Windows, which marks the POSIX
+    branch as unreachable. ``os.name`` is opaque to that narrowing.
+    """
+    if os.name == "nt":
         appdata = os.environ.get("APPDATA")
         base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
         return base / "swarmlord" / "runs.db"
