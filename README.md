@@ -8,7 +8,7 @@ Domain: [swarmlord.dev](https://swarmlord.dev) (owned, planned customer-facing s
 
 ## Status
 
-`spec-ready`, awaiting v1 implementation. The build spec at [`spec/build-spec.md`](spec/build-spec.md) is implementation-ready — schemas, interfaces, acceptance criteria, and the test plan are settled.
+Pre-v1. Repo initialized and on GitHub at [`TheAmericanMaker/swarmlord`](https://github.com/TheAmericanMaker/swarmlord). The build spec at [`spec/build-spec.md`](spec/build-spec.md) is implementation-ready — schemas, interfaces, acceptance criteria, and test plan are settled. No code yet.
 
 ## Roadmap
 
@@ -18,18 +18,18 @@ Domain: [swarmlord.dev](https://swarmlord.dev) (owned, planned customer-facing s
 
 ## What this repo contains
 
+- [`AGENTS.md`](AGENTS.md) — primary entry point for agents working on the codebase. Setup steps and what's settled vs open.
 - [`spec/`](spec) — the originating design history, in order: `idea.md`, `discovery.md`, `inspiration-review.md`, `build-spec.md`. Read in that order to follow the reasoning.
 - [`templates/packet/`](templates/packet) — packet scaffolding the future `swarmlord new` command will copy when scaffolding new project packets.
-- `GUIDE.md` — guide for agents working inside this codebase. (Currently inherited from the originating packet; will be rewritten as code-development guidance during v1.)
+- `GUIDE.md` — inherited packet-progression content from the originating packet; will be rewritten as code-development guidance during v1.
 - `THREAD_LOG.md` — running session log; append handoff entries here.
 
 ## Implementation entry point for the next agent
 
-1. Read [`GUIDE.md`](GUIDE.md) for the working conventions.
-2. Read [`spec/build-spec.md`](spec/build-spec.md) for everything: outcome, user workflows, architecture layers, schemas, runner protocol, CLI surface, acceptance criteria, test plan, and V2/V3 outline.
+1. Read [`AGENTS.md`](AGENTS.md) — Setup steps, what's settled, and working conventions.
+2. Read [`spec/build-spec.md`](spec/build-spec.md) — everything: outcome, user workflows, architecture layers, schemas, runner protocol, CLI surface, acceptance criteria, test plan, and V2/V3 outline.
 3. Read [`spec/inspiration-review.md`](spec/inspiration-review.md) only if you want the trade-off reasoning behind the architecture.
-4. Run `uv init --package` to scaffold `pyproject.toml` and `src/swarmlord/`.
-5. Implement v1 per the build spec. Do not re-decide architecture or naming — those are settled.
+4. Implement v1 per the build spec. Do not re-decide architecture or naming — those are settled.
 
 ## Origin
 

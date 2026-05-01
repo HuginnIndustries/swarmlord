@@ -2,49 +2,47 @@
 
 This is the implementation repo for SwarmLord. It is **not** a project packet (packets live elsewhere; this codebase scaffolds and operates them).
 
-## Setup (do this first, once)
+## Setup (start v1 here)
 
-The repo files are extracted but git is not yet initialized. Two stale directories left over from a sandbox extraction attempt (`.git/` and `.git.broken/`) need to be removed manually — the agent that extracted these files could not clean them up due to bind-mount permissions.
+The repo is initialized and pushed to GitHub at [`TheAmericanMaker/swarmlord`](https://github.com/TheAmericanMaker/swarmlord). To begin v1 implementation:
 
-On Windows (cmd.exe):
+1. Scaffold the package layout with uv:
 
-```cmd
-cd /d C:\Users\Inven\Documents\GitHub\swarmlord
-rmdir /s /q .git
-rmdir /s /q .git.broken
-git init -b main
-git add .
-git commit -m "Initial extraction from side-projects packet 2026-05-sandcastle-like-agent-orchestration"
-```
+   ```powershell
+   cd ~\Documents\GitHub\swarmlord
+   uv init --package
+   ```
 
-If `rmdir` reports access-denied on any file (sometimes the bind mount leaves read-only attributes), clear them first:
+   This creates `pyproject.toml` and `src/swarmlord/__init__.py`.
 
-```cmd
-attrib -r -s -h .git\* /s /d
-attrib -r -s -h .git.broken\* /s /d
-```
+2. Add the v1 dependencies declared in `spec/build-spec.md` "Core libraries":
 
-Then retry the `rmdir` lines.
+   ```powershell
+   uv add pydantic typer "jinja2>=3" ruamel.yaml python-frontmatter rich httpx
+   uv add --dev pytest pytest-cov pytest-asyncio mypy ruff
+   ```
 
-On Windows (PowerShell):
+3. Implement against `spec/build-spec.md` "Architecture layers" and "Acceptance Criteria". The first dogfood milestone is `swarmlord list` and `swarmlord render` working against the originating packet at `<your-side-projects-path>/projects/2026-05-sandcastle-like-agent-orchestration/`.
+
+4. Wire the CLI entry point in `pyproject.toml`:
+
+   ```toml
+   [project.scripts]
+   swarmlord = "swarmlord.cli:app"
+   swarm = "swarmlord.cli:app"
+   ```
+
+### Optional — mirror to a self-hosted git server
+
+If you want to keep GitHub as the primary surface and also push to a personal forge (Gitea, Forgejo, etc.), add the second URL as an additional push target on `origin`:
 
 ```powershell
-cd ~\Documents\GitHub\swarmlord
-Remove-Item -Recurse -Force .git, .git.broken -ErrorAction SilentlyContinue
-git init -b main
-git add .
-git commit -m "Initial extraction from side-projects packet 2026-05-sandcastle-like-agent-orchestration"
+git remote set-url --add --push origin https://github.com/TheAmericanMaker/swarmlord.git
+git remote set-url --add --push origin ssh://git@<forge-host>:<port>/<owner>/swarmlord.git
+git remote -v   # one (fetch) line, two (push) lines
 ```
 
-Then run `uv init --package` (or `uv init --lib`) when you're ready to start v1 implementation. That will scaffold `pyproject.toml` and `src/swarmlord/`.
-
-GitHub remote setup (when ready):
-
-```cmd
-gh repo create swarmlord --private --source . --push
-:: or for a public repo:
-gh repo create swarmlord --public --source . --push
-```
+After that, every `git push origin main` mirrors to both. The forge repo must exist before the first push.
 
 ## First read
 
