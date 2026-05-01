@@ -1,0 +1,120 @@
+# Changelog
+
+All notable changes to SwarmLord land here. Format follows
+[keepachangelog.com](https://keepachangelog.com/en/1.1.0/); this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.1] — 2026-05-01
+
+### Added
+
+- `swarmlord log <slug>` reads run history, gate evaluations, and stage
+  transitions back from SQLite. Flags: `--limit`, `--gates`,
+  `--transitions`, `--json`.
+- `extracted_to: str | None` and `extracted_on: date | None` on
+  `PacketStatus` so packets that pre-date the new schema and were
+  already extracted continue to validate.
+- `discover_failures()` in `packets/discovery.py` and a yellow `invalid
+  <slug>: <error>` block in `swarmlord list` so packets whose
+  `status.yaml` exists but fails schema validation are no longer silently
+  invisible.
+- `--force` flag on `swarmlord extract` for emergency extraction of a
+  packet that doesn't satisfy the build-ready stage and predicate gates.
+- `warn_writer` callback on `ManualRunner` and a CLI-flavored runner
+  registry that pipes clipboard-failure warnings to stderr; `--clipboard`
+  on `render` no longer silently falls back to stdout.
+- `_confine_path()` helper in `core/gates.py` and a corresponding
+  "escapes the packet root" GateResult so file/yaml predicates can't be
+  pointed outside the packet directory via `..` segments.
+
+### Changed
+
+- `service.promote` no longer silently overrides an empty
+  `gates.promote_to_*` list with the built-in defaults. WORKFLOW.md is
+  authoritative — declaring an empty list now means "no gates for this
+  transition" and is honored.
+- `service.dispatch_run` accepts an optional `history: RunHistory | None`
+  and persists the `RunRecord` on **both** the success and exception
+  paths. A runner crash now leaves a `status="failed"` audit row in
+  SQLite with the exception text in `error`, instead of disappearing.
+- The success-path `RunRecord` now copies `commits` from the runner's
+  `RunResult`. Sandcastle-parsed commit SHAs survive into history.
+- `service.extract_packet` requires stage `build_ready` and evaluates the
+  `promote_to_extracted` gate predicates by default; pass `force=True`
+  (or `--force` on the CLI) to bypass.
+- New-packet slug detection uses a regex (`^\d{4}-\d{2}-`) instead of a
+  hyphen-counting heuristic, fixing edge cases like `12-1234-foo`.
+- Phase resolution in `service.resolve_phase` and runner-profile
+  resolution in `service.resolve_runner_profile` are now extracted with
+  documented precedence chains.
+- Default `WorkflowDefinition` consolidated into a single
+  `default_workflow_definition()` helper used by both the bundled
+  template path and the synthetic-workflow path inside `dispatch_run`.
+- FastAPI router construction moved fully inside `create_app()`; each
+  `server/api/*.py` exposes `build_router()` instead of an
+  import-time-evaluated `router` (which previously required an
+  `ImportError` dance for installs without the `server` extra).
+- `default_db_path()` uses `os.name == "nt"` instead of
+  `sys.platform == "win32"` so `mypy --strict` keeps both POSIX and
+  Windows branches reachable on either platform.
+- List columns in `swarmlord list` use `overflow="fold"` on the slug so
+  long slugs wrap to multiple lines instead of being truncated with `…`.
+- `Stage` and `Phase` now inherit from `enum.StrEnum` instead of
+  `(str, Enum)`.
+- `PacketStatus` field validators coerce non-string list items in
+  `next_actions` / `assumptions` / `open_questions` /
+  `resolved_questions` / `owner_notes` to strings (None → `""`,
+  numbers → `str(n)`, dicts → `repr`) so realistic packets remain
+  loadable instead of rejecting on a single bad item.
+
+### Fixed
+
+- `swarmlord --version` works without a subcommand (the eager option
+  callback fires before the missing-command check).
+- Replaced `datetime.utcnow()` with timezone-aware `datetime.now(UTC)`
+  across runners, service, storage, and memory modules.
+- `resolve_packet` raises a helpful error pointing at
+  `swarmlord validate <slug>` when a packet exists on disk but fails
+  schema, instead of "no packet found" (which made invalid packets feel
+  missing).
+
+## [0.1.0] — 2026-05-01
+
+### Added
+
+- V1 implementation per `spec/build-spec.md`. Python 3.12, `uv`-managed.
+- `core/`: Pydantic v2 models, `Stage`/`Phase` `StrEnum`s, transition
+  table, and predicate evaluators (`FileExists`, `FileSectionFilled`,
+  `YamlFieldEmpty`, `YamlFieldEquals`, `ExtractMdResolved`,
+  `TestsPassing`).
+- `packets/`: discovery walker, ruamel.yaml round-trip reader, atomic
+  writer with `tempfile` + `os.replace`, append-only `THREAD_LOG.md`,
+  `projects/INDEX.md` upsert.
+- `templating/`: Jinja2 with `StrictUndefined`, `autoescape=False`,
+  `keep_trailing_newline=True`, custom filters
+  (`trim`/`indent_n`/`default_empty`/`summarize`), and the rule that
+  user-supplied content is treated literally.
+- `runners/`: Runner Protocol with `RunRequest`/`RunResult`,
+  `ManualRunner` with clipboard fallback, `ClaudeCodeInteractiveRunner`,
+  `SandcastleDockerRunner` that generates `.sandcastle/main.ts` +
+  `prompt.md` and parses the `__SANDCASTLE_SUMMARY__` line.
+- `memory/`: `graphify` subprocess wrapper.
+- `storage/`: SQLite `RunHistory` at
+  `~/.local/share/swarmlord/runs.db` (POSIX) or
+  `%APPDATA%\swarmlord\runs.db` (Windows). Three tables: `runs`,
+  `gate_evaluations`, `transitions`.
+- `service.py`: orchestration glue (`list/pick/new/render/promote/
+  dispatch/extract/validate`).
+- `cli.py`: Typer entry point with the 11 commands from the spec.
+- `server/`: FastAPI scaffold returning 501 from every endpoint, ready
+  for V2 to fill in.
+- Bundled packet template at `src/swarmlord/_templates/packet/` (used as
+  fallback when `<repo>/templates/packet/` is absent).
+- `.github/workflows/ci.yml`: lint, format check, `mypy --strict`,
+  `pytest --cov` with an 80% coverage gate.
+
+[Unreleased]: https://github.com/TheAmericanMaker/swarmlord/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/TheAmericanMaker/swarmlord/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/TheAmericanMaker/swarmlord/releases/tag/v0.1.0

@@ -141,6 +141,18 @@ def list_cmd(
             summary[:80] + ("…" if len(summary) > 80 else ""),
         )
     console.print(table)
+    # Surface packets whose status.yaml exists but fails schema validation.
+    # Without this, broken packets are silently invisible to the user.
+    from swarmlord.packets.discovery import discover_failures
+
+    failures = discover_failures(_repo_root())
+    if failures:
+        err_console.print(
+            f"[yellow]{len(failures)} packet(s) failed schema validation "
+            f"(run `swarmlord validate <slug>` for details):[/yellow]"
+        )
+        for root, msg in failures:
+            err_console.print(f"  [yellow]invalid[/yellow] {root.name}: {msg}")
 
 
 @app.command("next")
@@ -394,14 +406,108 @@ def repair_cmd(
     console.print(f"[green]repaired[/green] {bundle.status.slug}")
 
 
+@app.command("log")
+def log_cmd(
+    slug: str = typer.Argument(...),
+    limit: int = typer.Option(20, "--limit", help="Most recent N runs."),
+    gates: bool = typer.Option(False, "--gates", help="Also show gate evaluations."),
+    transitions: bool = typer.Option(False, "--transitions", help="Also show stage transitions."),
+    json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of tables."),
+) -> None:
+    """Show run history, gate evaluations, and transitions for a packet."""
+    try:
+        bundle = resolve_packet(_repo_root(), slug)
+    except SwarmLordError as exc:
+        _handle(exc)
+        return
+    history = RunHistory()
+    runs = history.list_runs(bundle.status.slug, limit=limit)
+    gate_rows = history.list_gate_evaluations(bundle.status.slug) if gates else []
+    transition_rows = history.list_transitions(bundle.status.slug) if transitions else []
+
+    if json_out:
+        console.print_json(
+            data={
+                "slug": bundle.status.slug,
+                "runs": runs,
+                "gates": gate_rows,
+                "transitions": transition_rows,
+            }
+        )
+        return
+
+    if not runs and not gate_rows and not transition_rows:
+        console.print(f"[dim]no history yet for {bundle.status.slug}[/dim]")
+        return
+
+    if runs:
+        table = Table(title=f"runs for {bundle.status.slug} ({len(runs)})")
+        table.add_column("started", overflow="fold")
+        table.add_column("runner")
+        table.add_column("phase")
+        table.add_column("exit", justify="right")
+        table.add_column("status")
+        table.add_column("signal", overflow="fold")
+        table.add_column("error", overflow="fold")
+        for r in runs:
+            exit_code = r.get("exit_code")
+            status = str(r.get("status") or "")
+            status_styled = (
+                f"[green]{status}[/green]"
+                if status == "succeeded"
+                else f"[red]{status}[/red]"
+                if status == "failed"
+                else status
+            )
+            table.add_row(
+                str(r.get("started_at") or "")[:19],
+                str(r.get("runner_profile") or ""),
+                str(r.get("phase") or ""),
+                "-" if exit_code is None else str(exit_code),
+                status_styled,
+                str(r.get("completion_signal_seen") or "-"),
+                str(r.get("error") or ""),
+            )
+        console.print(table)
+
+    if gate_rows:
+        gtable = Table(title=f"gate evaluations ({len(gate_rows)})")
+        gtable.add_column("evaluated", overflow="fold")
+        gtable.add_column("predicate", overflow="fold")
+        gtable.add_column("result")
+        gtable.add_column("message", overflow="fold")
+        for g in gate_rows:
+            passed = bool(g.get("passed"))
+            gtable.add_row(
+                str(g.get("evaluated_at") or "")[:19],
+                str(g.get("predicate") or ""),
+                "[green]pass[/green]" if passed else "[red]fail[/red]",
+                str(g.get("message") or ""),
+            )
+        console.print(gtable)
+
+    if transition_rows:
+        ttable = Table(title=f"transitions ({len(transition_rows)})")
+        ttable.add_column("at", overflow="fold")
+        ttable.add_column("from")
+        ttable.add_column("to")
+        ttable.add_column("reason", overflow="fold")
+        for t in transition_rows:
+            ttable.add_row(
+                str(t.get("at") or "")[:19],
+                str(t.get("from_stage") or ""),
+                str(t.get("to_stage") or ""),
+                str(t.get("reason") or "-"),
+            )
+        console.print(ttable)
+
+
 @app.command("serve")
 def serve_cmd(
     port: int = typer.Option(8000, "--port"),
 ) -> None:
     """Start the FastAPI server (V2)."""
-    err_console.print(
-        "[yellow]serve is a V2 feature; the server module is a stub in V1.[/yellow]"
-    )
+    err_console.print("[yellow]serve is a V2 feature; the server module is a stub in V1.[/yellow]")
     raise typer.Exit(code=2)
 
 

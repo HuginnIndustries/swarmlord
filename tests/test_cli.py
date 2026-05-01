@@ -94,3 +94,18 @@ def test_next_prints_top_candidate(repo_root: Path) -> None:
         result = CliRunner().invoke(app, ["next"])
     assert result.exit_code == 0
     assert "2026-05-a" in result.stdout
+
+
+def test_log_command_empty_history(repo_root: Path) -> None:
+    """`swarmlord log` against a packet with no recorded runs prints a dim notice."""
+    make_packet(repo_root, slug="2026-05-noruns")
+    # Point RunHistory at an isolated DB so we don't touch the user's real one.
+    db_path = repo_root / "runs.db"
+    with _cd(repo_root):
+        result = CliRunner().invoke(
+            app,
+            ["log", "2026-05-noruns"],
+            env={"XDG_DATA_HOME": str(db_path.parent)},
+        )
+    assert result.exit_code == 0
+    assert "no history yet" in result.stdout or "2026-05-noruns" in result.stdout

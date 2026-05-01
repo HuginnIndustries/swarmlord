@@ -62,3 +62,25 @@ def find_packet(
         if packet.status.slug == slug or packet.root.name == slug:
             return packet
     return None
+
+
+def discover_failures(
+    repo_root: Path,
+    *,
+    projects_subdir: str = "projects",
+) -> list[tuple[Path, str]]:
+    """Return ``(packet_root, error_message)`` for every packet that exists
+    on disk but failed schema validation. Useful for surfacing broken
+    packets in ``swarmlord list`` so they are not invisible to the user.
+    """
+    base = repo_root / projects_subdir
+    if not base.is_dir():
+        return []
+    failures: list[tuple[Path, str]] = []
+    for status_file in sorted(base.glob("*/workflow/status.yaml")):
+        packet_root = status_file.parent.parent
+        try:
+            load_status(packet_root)
+        except (PacketSchemaError, FileNotFoundError) as exc:
+            failures.append((packet_root, str(exc).splitlines()[0]))
+    return failures

@@ -60,6 +60,11 @@ class PacketStatus(_StrictModel):
     owner_notes: list[str] = Field(default_factory=list)
     runner_profile: str | None = None
     memory: MemoryStatus | None = None
+    # Extraction metadata — populated by ``swarmlord extract`` and preserved
+    # for any packet that pre-dates the current schema (the spec says
+    # "the migration adds resolved_questions and runner_profile, drops nothing").
+    extracted_to: str | None = None
+    extracted_on: date | None = None
 
     @field_validator("phase_status", mode="before")
     @classmethod
@@ -71,6 +76,36 @@ class PacketStatus(_StrictModel):
         for k, v in value.items():
             phase = k if isinstance(k, Phase) else Phase(k)
             out[phase] = v
+        return out
+
+    @field_validator(
+        "next_actions",
+        "assumptions",
+        "open_questions",
+        "resolved_questions",
+        "owner_notes",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_string_list_items(cls, value: Any) -> Any:
+        """Coerce non-string list items to strings.
+
+        Real-world packets sometimes have ``None``, dates, or scalar numbers
+        in these lists (e.g. owner_notes accumulated from a YAML mapping that
+        was later flattened). Rather than reject the file, stringify each
+        item so the packet remains readable and the user can clean it up
+        later via the orchestrator.
+        """
+        if not isinstance(value, list):
+            return value
+        out: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                out.append(item)
+            elif item is None:
+                out.append("")
+            else:
+                out.append(str(item))
         return out
 
 

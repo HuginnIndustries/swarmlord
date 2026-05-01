@@ -631,8 +631,22 @@ def validate_all(repo_root: Path) -> list[tuple[Path, Exception | None]]:
 
 
 def resolve_packet(repo_root: Path, slug: str) -> PacketBundle:
-    """Find a packet by slug and return its bundle, or raise."""
+    """Find a packet by slug and return its bundle, or raise.
+
+    If a packet directory exists but failed schema validation, the error
+    message points the user at ``swarmlord validate`` for the full report.
+    """
     found = find_packet(repo_root, slug)
-    if found is None:
-        raise SwarmLordError(f"no packet found with slug or folder name '{slug}'")
-    return load_packet(found.root)
+    if found is not None:
+        return load_packet(found.root)
+    # Maybe the packet exists but failed schema validation (and was thus
+    # filtered by find_packet). Check the failures list to give a useful hint.
+    from swarmlord.packets.discovery import discover_failures
+
+    for failure_root, failure_msg in discover_failures(repo_root):
+        if failure_root.name == slug:
+            raise SwarmLordError(
+                f"packet '{slug}' exists but failed schema validation: {failure_msg}\n"
+                f"  run `swarmlord validate {slug}` for full details"
+            )
+    raise SwarmLordError(f"no packet found with slug or folder name '{slug}'")

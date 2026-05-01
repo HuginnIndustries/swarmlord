@@ -91,3 +91,25 @@ def test_render_string_low_level(tmp_path: Path) -> None:
 
     ctx = build_context(_packet(), repo_root=tmp_path, packet_root=tmp_path)
     assert render_string("{{ packet.slug }}", ctx) == "2026-05-p"
+
+
+def test_render_is_deterministic_byte_identical(tmp_path: Path) -> None:
+    """Acceptance Criterion #4: identical inputs must produce byte-identical output.
+
+    Catches accidental injection of timestamps, random IDs, or anything
+    that would silently make rendered prompts non-reproducible.
+    """
+    template = (
+        "packet: {{ packet.slug }}\n"
+        "stage: {{ packet.stage.value }}\n"
+        "phase: {{ packet.current_phase.value }}\n"
+        "next:\n{% for a in packet.next_actions %}- {{ a }}\n{% endfor %}"
+        "{% if attempt %}retry {{ attempt }}\n{% endif %}"
+    )
+    pkt = _packet(open_questions=["does this matter?"]).model_copy(
+        update={"next_actions": ["one", "two"]}
+    )
+    a = render_prompt(template, pkt, repo_root=tmp_path, packet_root=tmp_path, attempt=2)
+    b = render_prompt(template, pkt, repo_root=tmp_path, packet_root=tmp_path, attempt=2)
+    assert a == b
+    assert a.encode("utf-8") == b.encode("utf-8")

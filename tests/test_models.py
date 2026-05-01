@@ -105,3 +105,54 @@ def test_workflow_definition_defaults() -> None:
     assert isinstance(wf.hooks, WorkflowHooks)
     assert isinstance(wf.agent, AgentConfig)
     assert wf.agent.max_turns == 20
+
+
+def test_packetstatus_accepts_extraction_metadata() -> None:
+    s = PacketStatus.model_validate(
+        {
+            "project_name": "p",
+            "slug": "p",
+            "stage": "extracted",
+            "current_phase": "extraction",
+            "created": "2026-05-01",
+            "updated": "2026-05-01",
+            "extracted_to": "~/Documents/GitHub/p",
+            "extracted_on": "2026-05-01",
+        }
+    )
+    assert s.extracted_to == "~/Documents/GitHub/p"
+    assert s.extracted_on == date(2026, 5, 1)
+
+
+def test_owner_notes_coerces_non_string_items() -> None:
+    """Real-world packets sometimes have non-string items mixed in."""
+    s = PacketStatus.model_validate(
+        {
+            "project_name": "p",
+            "slug": "p",
+            "stage": "idea",
+            "current_phase": "idea",
+            "created": "2026-05-01",
+            "updated": "2026-05-01",
+            "owner_notes": ["a real note", None, 42, {"nested": "dict"}],
+        }
+    )
+    assert s.owner_notes[0] == "a real note"
+    assert s.owner_notes[1] == ""  # None coerces to empty string
+    assert s.owner_notes[2] == "42"
+    assert s.owner_notes[3] == "{'nested': 'dict'}"
+
+
+def test_string_list_coercion_applies_to_other_lists() -> None:
+    s = PacketStatus.model_validate(
+        {
+            "project_name": "p",
+            "slug": "p",
+            "stage": "idea",
+            "current_phase": "idea",
+            "created": "2026-05-01",
+            "updated": "2026-05-01",
+            "open_questions": [None, 1, "real"],
+        }
+    )
+    assert s.open_questions == ["", "1", "real"]

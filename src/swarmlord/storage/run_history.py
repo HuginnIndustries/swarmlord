@@ -186,3 +186,15 @@ class RunHistory:
                 (packet_slug,),
             ).fetchall()
             return [dict(r) for r in rows]
+
+    def list_gate_evaluations(
+        self, packet_slug: str, *, limit: int = 100
+    ) -> list[dict[str, object]]:
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM gate_evaluations WHERE packet_slug = ? "
+                "ORDER BY evaluated_at DESC LIMIT ?",
+                (packet_slug, limit),
+            ).fetchall()
+            return [dict(r) for r in rows]
