@@ -1,0 +1,27 @@
+phase_order:
+  - idea
+  - discovery
+  - build_spec
+  - extraction
+
+phases:
+  idea:
+    purpose: Capture the raw idea, inferred intent, assumptions, and first questions.
+    primary_output: spec/idea.md
+    skill_path: skills/intake/SKILL.md
+    completion_rule: Raw idea and interpreted intent are documented.
+  discovery:
+    purpose: Refine the fuzzy idea into a practical project direction and MVP recommendation.
+    primary_output: spec/discovery.md
+    skill_path: skills/discovery/SKILL.md
+    completion_rule: Goals, audience, constraints, options, recommendation, and open questions are documented.
+  build_spec:
+    purpose: Produce a build-ready implementation specification.
+    primary_output: spec/build-spec.md
+    skill_path: skills/build-spec/SKILL.md
+    completion_rule: A separate agent can implement without making structural product decisions.
+  extraction:
+    purpose: Prepare the project packet to become a standalone repository.
+    primary_output: EXTRACT.md
+    skill_path: skills/extraction/SKILL.md
+    completion_rule: Extraction checklist is complete or explicitly deferred.

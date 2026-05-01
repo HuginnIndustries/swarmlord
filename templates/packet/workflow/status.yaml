@@ -1,0 +1,24 @@
+project_name: PROJECT_NAME
+slug: YYYY-MM-project-slug
+stage: idea
+current_phase: idea
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+
+summary: ""
+
+next_actions:
+  - Capture the raw idea in spec/idea.md.
+  - Infer useful assumptions and mark them clearly.
+  - Move to discovery when the idea has enough shape for research and scope options.
+
+assumptions: []
+open_questions: []
+
+phase_status:
+  idea: pending
+  discovery: pending
+  build_spec: pending
+  extraction: pending
+
+owner_notes: []

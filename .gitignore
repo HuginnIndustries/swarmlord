@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# uv
+.venv/
+uv.lock
+
+# Tests
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+
+# Type checkers
+.mypy_cache/
+.pyright/
+.pytype/
+
+# Linters
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# SwarmLord runtime
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Sandcastle
+.sandcastle/.env
+.sandcastle/logs/
+
+# Graphify
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json
+
+# Logs
+*.log
+logs/
+
+# Scratch
+scratch/
