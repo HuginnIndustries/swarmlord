@@ -55,6 +55,7 @@ from swarmlord.packets.thread_log import append_thread_log
 from swarmlord.packets.writer import write_status
 from swarmlord.runners.base import RunRequest, RunResult
 from swarmlord.runners.registry import RunnerRegistry, default_registry
+from swarmlord.storage.run_history import RunHistory
 from swarmlord.templating.engine import render_prompt
 
 # A best-effort mapping from stage to the phase that fits work in that stage.
@@ -455,8 +456,16 @@ async def dispatch_run(
     registry: RunnerRegistry | None = None,
     attempt: int = 0,
     on_disk_today: date | None = None,
+    history: RunHistory | None = None,
 ) -> tuple[RunResult, RunRecord]:
-    """Render + dispatch + record. Updates ``status.phase_status`` on success."""
+    """Render + dispatch + record. Updates ``status.phase_status`` on success.
+
+    The run record is persisted to ``history`` (when provided) on *both* the
+    success and exception paths, so a runner crash or malformed Sandcastle
+    summary still leaves an audit row in SQLite. The exception then re-raises
+    to the caller; the caller can find the failed record via
+    ``history.list_runs(slug)``.
+    """
     profile = resolve_runner_profile(bundle, runner_profile)
     target_phase = resolve_phase(bundle)
     rendered = render_for_packet(repo_root, bundle, phase=target_phase, attempt=attempt)
@@ -490,6 +499,8 @@ async def dispatch_run(
                 "error": str(exc),
             }
         )
+        if history is not None:
+            history.insert_run(record)
         raise
     today = on_disk_today or date.today()
     record = record.model_copy(
@@ -499,6 +510,7 @@ async def dispatch_run(
             "completion_signal_seen": result.completion_signal_seen,
             "log_path": result.log_path,
             "transcript_path": result.transcript_path,
+            "commits": list(result.commits),
             "status": "succeeded" if result.exit_code == 0 else "failed",
         }
     )
@@ -509,6 +521,8 @@ async def dispatch_run(
             update={"phase_status": new_phase_status, "updated": today}
         )
         write_status(bundle.root, new_status)
+    if history is not None:
+        history.insert_run(record)
     return result, record
 
 
@@ -527,11 +541,30 @@ def extract_packet(
     *,
     target: Path,
     init_git: bool = True,
+    force: bool = False,
     on_disk_today: date | None = None,
 ) -> ExtractionResult:
-    """Execute the EXTRACT.md flow into a new repo path."""
+    """Execute the EXTRACT.md flow into a new repo path.
+
+    Defaults require the source packet to be at stage ``build_ready`` and
+    the ``promote_to_extracted`` gates (``ExtractMdResolved`` + any
+    WORKFLOW.md additions) to pass. Pass ``force=True`` to bypass both
+    checks — useful for emergency extraction of a half-finished packet.
+    """
     if target.exists():
         raise SwarmLordError(f"extract target already exists: {target}")
+    if not force:
+        # Stage gate: only build_ready packets are extractable forward.
+        # The legal-transition table forbids any other origin.
+        assert_transition(bundle.status.stage, Stage.EXTRACTED)
+        # Predicate gate: same shape as promote(), so a packet that would
+        # fail `swarmlord promote --to extracted` also fails `extract`.
+        gates = bundle.workflow.gates if bundle.workflow else default_gate_config()
+        predicates = gate_predicates_for(Stage.EXTRACTED, gates)
+        results = evaluate_gate(predicates, bundle.root) if predicates else []
+        failures = [r for r in results if not r.passed]
+        if failures:
+            raise GateFailure([r.message for r in failures])
     target.mkdir(parents=True)
     files_copied = 0
     for name in ("README.md", "GUIDE.md", "THREAD_LOG.md", "EXTRACT.md"):

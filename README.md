@@ -35,7 +35,7 @@ uv run swarmlord promote sample-packet --to discovery
 - [`src/swarmlord/`](src/swarmlord) — the Python package. Library + Typer CLI.
 - [`spec/`](spec) — the originating design history, in order: `idea.md`, `discovery.md`, `inspiration-review.md`, `build-spec.md`. Read in that order to follow the reasoning.
 - [`templates/packet/`](templates/packet) — packet scaffolding the `swarmlord new` command copies when creating new packets. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
-- [`tests/`](tests) — unit + integration test suite (78 tests).
+- [`tests/`](tests) — unit + integration test suite (94 tests; ~85% coverage).
 - `GUIDE.md` — packet-progression content carried from the originating packet.
 - `THREAD_LOG.md` — running session log; append handoff entries here.
 

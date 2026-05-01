@@ -9,7 +9,7 @@ V1 is implemented. Standard workflow:
 ```powershell
 cd ~\Documents\GitHub\swarmlord
 uv sync --dev
-uv run pytest          # 78 tests, ~85% coverage
+uv run pytest          # 94 tests, ~85% coverage
 uv run ruff check
 uv run ruff format --check
 uv run mypy --strict src/swarmlord

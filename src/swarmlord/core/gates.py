@@ -69,14 +69,18 @@ def evaluate_gate(predicates: list[Predicate], packet_root: Path) -> list[GateRe
 
 
 def _eval_file_exists(p: FileExists, root: Path) -> GateResult:
-    target = root / p.path
+    target = _confine_path(root, p.path)
+    if target is None:
+        return GateResult(p, False, f"{p.path} escapes the packet root")
     if target.is_file():
         return GateResult(p, True, f"{p.path} exists")
     return GateResult(p, False, f"{p.path} is missing under {root}")
 
 
 def _eval_file_section_filled(p: FileSectionFilled, root: Path) -> GateResult:
-    target = root / p.path
+    target = _confine_path(root, p.path)
+    if target is None:
+        return GateResult(p, False, f"{p.path} escapes the packet root")
     if not target.is_file():
         return GateResult(p, False, f"{p.path} is missing")
     text = target.read_text(encoding="utf-8")
@@ -191,7 +195,9 @@ def _extract_section(text: str, header: str) -> str | None:
 
 
 def _load_yaml_field(rel_path: str, dotted: str, root: Path) -> tuple[Any, str | None]:
-    target = root / rel_path
+    target = _confine_path(root, rel_path)
+    if target is None:
+        return None, f"{rel_path} escapes the packet root"
     if not target.is_file():
         return None, f"{rel_path} is missing"
     try:
@@ -213,3 +219,23 @@ def _is_empty(value: Any) -> bool:
     if isinstance(value, str | list | dict | tuple | set):
         return len(value) == 0
     return False
+
+
+def _confine_path(root: Path, rel: str) -> Path | None:
+    """Resolve ``root / rel`` and return the result iff it stays inside ``root``.
+
+    Returns ``None`` if the joined path escapes the packet root (e.g. via
+    ``..`` segments or an absolute path). Gate evaluators turn ``None`` into
+    a clear failure message rather than letting the predicate read arbitrary
+    files on disk.
+    """
+    try:
+        candidate = (root / rel).resolve()
+        root_resolved = root.resolve()
+    except OSError:
+        return None
+    try:
+        candidate.relative_to(root_resolved)
+    except ValueError:
+        return None
+    return candidate

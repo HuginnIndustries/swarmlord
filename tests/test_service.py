@@ -160,15 +160,50 @@ def test_dispatch_run_with_manual(repo_root: Path) -> None:
     assert after.phase_status[Phase.IDEA] == "complete"
 
 
-def test_extract_packet(repo_root: Path) -> None:
+def test_extract_packet_requires_build_ready(repo_root: Path) -> None:
+    """Extraction without --force only succeeds from build_ready."""
+    from swarmlord.core.errors import IllegalTransition
+
+    # Default fixture is at IDEA -> the stage gate must reject.
     root = make_packet(repo_root)
     bundle = load_packet(root)
     target = repo_root / "out"
-    result = extract_packet(repo_root, bundle, target=target, init_git=False)
+    with pytest.raises(IllegalTransition):
+        extract_packet(repo_root, bundle, target=target, init_git=False)
+
+
+def test_extract_packet_force_bypasses_gates(repo_root: Path) -> None:
+    """force=True skips both stage and predicate gates."""
+    root = make_packet(repo_root)
+    bundle = load_packet(root)
+    target = repo_root / "out"
+    result = extract_packet(repo_root, bundle, target=target, init_git=False, force=True)
     assert result.target == target
     assert (target / "README.md").is_file()
     assert (target / "spec" / "idea.md").is_file()
     assert load_status(root).stage is Stage.EXTRACTED
+
+
+def test_extract_packet_from_build_ready_passes(repo_root: Path) -> None:
+    """A packet at build_ready with EXTRACT.md fully resolved extracts cleanly."""
+    root = make_packet(repo_root, stage=Stage.BUILD_READY)
+    bundle = load_packet(root)
+    target = repo_root / "out2"
+    result = extract_packet(repo_root, bundle, target=target, init_git=False)
+    assert result.target == target
+    assert load_status(root).stage is Stage.EXTRACTED
+
+
+def test_extract_packet_failing_extract_md_raises_gate(repo_root: Path) -> None:
+    """A packet at build_ready with unresolved EXTRACT.md must fail the gate."""
+    root = make_packet(repo_root, stage=Stage.BUILD_READY)
+    write_text_atomic(
+        root / "EXTRACT.md",
+        "# Extraction\n\n- [ ] still open\n",
+    )
+    bundle = load_packet(root)
+    with pytest.raises(GateFailure):
+        extract_packet(repo_root, bundle, target=repo_root / "out3", init_git=False)
 
 
 def test_resolve_packet_missing(repo_root: Path) -> None:
@@ -291,3 +326,82 @@ phase: extraction
     )
     bundle2 = load_packet(root2)
     assert resolve_phase(bundle2) is Phase.EXTRACTION
+
+
+def test_dispatch_run_persists_failed_record(repo_root: Path, tmp_path: Path) -> None:
+    """A runner that raises must still leave an audit row in SQLite."""
+
+    from swarmlord.runners.base import RunRequest, RunResult
+    from swarmlord.runners.registry import RunnerRegistry
+    from swarmlord.storage.run_history import RunHistory
+
+    class CrashingRunner:
+        name = "manual"
+
+        def can_handle(self, profile: str) -> bool:
+            return profile == self.name
+
+        async def run(self, request: RunRequest) -> RunResult:
+            raise RuntimeError("kaboom")
+
+    history = RunHistory(tmp_path / "runs.db")
+    root = make_packet(repo_root)
+    bundle = load_packet(root)
+    with pytest.raises(RuntimeError):
+        asyncio.run(
+            dispatch_run(
+                repo_root,
+                bundle,
+                runner_profile="manual",
+                registry=RunnerRegistry([CrashingRunner()]),
+                history=history,
+            )
+        )
+    rows = history.list_runs(bundle.status.slug)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "failed"
+    assert rows[0]["error"] == "kaboom"
+
+
+def test_dispatch_run_records_commits(repo_root: Path, tmp_path: Path) -> None:
+    """Commits returned by the runner must end up on the persisted record."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from swarmlord.runners.base import RunRequest, RunResult
+    from swarmlord.runners.registry import RunnerRegistry
+    from swarmlord.storage.run_history import RunHistory
+
+    class CommittingRunner:
+        name = "manual"
+
+        def can_handle(self, profile: str) -> bool:
+            return profile == self.name
+
+        async def run(self, request: RunRequest) -> RunResult:
+            now = _dt.now(_UTC)
+            return RunResult(
+                runner=self.name,
+                started_at=now,
+                ended_at=now,
+                exit_code=0,
+                completion_signal_seen="<promise>COMPLETE</promise>",
+                commits=["abc1234", "def5678"],
+            )
+
+    history = RunHistory(tmp_path / "runs.db")
+    root = make_packet(repo_root)
+    bundle = load_packet(root)
+    _result, record = asyncio.run(
+        dispatch_run(
+            repo_root,
+            bundle,
+            runner_profile="manual",
+            registry=RunnerRegistry([CommittingRunner()]),
+            history=history,
+        )
+    )
+    assert record.commits == ["abc1234", "def5678"]
+    rows = history.list_runs(bundle.status.slug)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "succeeded"

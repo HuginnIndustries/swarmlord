@@ -237,6 +237,7 @@ def run_cmd(
                 f"[dim]would dispatch {len(rendered)} chars to {runner or '(default)'}[/dim]"
             )
             return
+        history = RunHistory()
         result, record = asyncio.run(
             dispatch_run(
                 _repo_root(),
@@ -244,13 +245,12 @@ def run_cmd(
                 runner_profile=runner,
                 attempt=attempt,
                 registry=_cli_registry(),
+                history=history,
             )
         )
     except SwarmLordError as exc:
         _handle(exc)
         return
-    history = RunHistory()
-    history.insert_run(record)
     console.print(
         f"[green]ran[/green] {record.runner_profile} "
         f"(exit={result.exit_code}, signal={result.completion_signal_seen or '-'})"
@@ -356,12 +356,19 @@ def extract_cmd(
     slug: str = typer.Argument(...),
     target: Path = typer.Option(..., "--target"),
     no_git: bool = typer.Option(False, "--no-git"),
+    force: bool = typer.Option(False, "--force", help="Skip stage + ExtractMdResolved gates."),
 ) -> None:
     """Execute EXTRACT.md into a new repo path and mark the packet extracted."""
     try:
         bundle = resolve_packet(_repo_root(), slug)
-        result = extract_packet(_repo_root(), bundle, target=target, init_git=not no_git)
-    except SwarmLordError as exc:
+        result = extract_packet(
+            _repo_root(),
+            bundle,
+            target=target,
+            init_git=not no_git,
+            force=force,
+        )
+    except (SwarmLordError, GateFailure) as exc:
         _handle(exc)
         return
     console.print(

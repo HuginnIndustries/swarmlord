@@ -102,3 +102,43 @@ def test_extract_md_resolved_marks_explicit_deferred_text(tmp_path: Path) -> Non
     _write(tmp_path / "EXTRACT.md", body)
     res = evaluate_predicate(ExtractMdResolved(kind="extract_md_resolved"), tmp_path)
     assert res.passed
+
+
+def test_path_confinement_blocks_traversal(tmp_path: Path) -> None:
+    """Predicates must refuse to read paths outside the packet root."""
+    # Create a sibling file the predicate should NOT be allowed to read.
+    other = tmp_path.parent / "outside.md"
+    other.write_text("# External\n\n## Outcome\n\nshould be unreachable\n", encoding="utf-8")
+    res = evaluate_predicate(
+        FileSectionFilled(
+            kind="file_section_filled",
+            path="../outside.md",
+            section="## Outcome",
+        ),
+        tmp_path,
+    )
+    assert not res.passed
+    assert "escapes the packet root" in res.message
+
+
+def test_path_confinement_allows_in_root(tmp_path: Path) -> None:
+    _write(tmp_path / "ok.txt", "hi")
+    res = evaluate_predicate(
+        FileExists(kind="file_exists", path="ok.txt"),
+        tmp_path,
+    )
+    assert res.passed
+
+
+def test_yaml_field_path_confinement(tmp_path: Path) -> None:
+    """YAML predicates also refuse to escape the packet root."""
+    res = evaluate_predicate(
+        YamlFieldEmpty(
+            kind="yaml_field_empty",
+            path="../something.yaml",
+            field="x",
+        ),
+        tmp_path,
+    )
+    assert not res.passed
+    assert "escapes the packet root" in res.message
