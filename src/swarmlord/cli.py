@@ -124,7 +124,9 @@ def list_cmd(
         console.print("[dim]no packets found under ./projects[/dim]")
         return
     table = Table(title=f"packets ({len(packets)})")
-    table.add_column("slug")
+    # Slug must always be fully readable — it's the identifier the user types
+    # into every other command. Fold across multiple lines instead of truncating.
+    table.add_column("slug", overflow="fold", no_wrap=False)
     table.add_column("stage")
     table.add_column("phase")
     table.add_column("runner")
@@ -397,7 +399,9 @@ def serve_cmd(
     port: int = typer.Option(8000, "--port"),
 ) -> None:
     """Start the FastAPI server (V2)."""
-    err_console.print("[yellow]serve is a V2 feature; the server module is a stub in V1.[/yellow]")
+    err_console.print(
+        "[yellow]serve is a V2 feature; the server module is a stub in V1.[/yellow]"
+    )
     raise typer.Exit(code=2)
 
 
