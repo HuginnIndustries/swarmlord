@@ -8,7 +8,20 @@ Domain: [swarmlord.dev](https://swarmlord.dev) (owned, planned customer-facing s
 
 ## Status
 
-Pre-v1. Repo initialized and on GitHub at [`TheAmericanMaker/swarmlord`](https://github.com/TheAmericanMaker/swarmlord). The build spec at [`spec/build-spec.md`](spec/build-spec.md) is implementation-ready — schemas, interfaces, acceptance criteria, and test plan are settled. No code yet.
+V1 implemented. Python 3.12 package, Typer CLI, Pydantic v2 schemas, Jinja2 strict templating, atomic packet writes, SQLite run history, and runner registry (manual / claude-code-interactive / sandcastle-docker). FastAPI server scaffold returns 501s, ready for V2. Tests, lint, format, and `mypy --strict` all pass; coverage gate at 80% with 85% reported.
+
+```powershell
+# Install (editable)
+cd ~\Documents\GitHub\swarmlord
+uv sync --dev
+
+# Smoke
+uv run swarmlord --help
+uv run swarmlord list
+uv run swarmlord new sample-packet --title "Sample" --summary "A sample packet"
+uv run swarmlord render sample-packet
+uv run swarmlord promote sample-packet --to discovery
+```
 
 ## Roadmap
 
@@ -19,10 +32,28 @@ Pre-v1. Repo initialized and on GitHub at [`TheAmericanMaker/swarmlord`](https:/
 ## What this repo contains
 
 - [`AGENTS.md`](AGENTS.md) — primary entry point for agents working on the codebase. Setup steps and what's settled vs open.
+- [`src/swarmlord/`](src/swarmlord) — the Python package. Library + Typer CLI.
 - [`spec/`](spec) — the originating design history, in order: `idea.md`, `discovery.md`, `inspiration-review.md`, `build-spec.md`. Read in that order to follow the reasoning.
-- [`templates/packet/`](templates/packet) — packet scaffolding the future `swarmlord new` command will copy when scaffolding new project packets.
-- `GUIDE.md` — inherited packet-progression content from the originating packet; will be rewritten as code-development guidance during v1.
+- [`templates/packet/`](templates/packet) — packet scaffolding the `swarmlord new` command copies when creating new packets. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
+- [`tests/`](tests) — unit + integration test suite (78 tests).
+- `GUIDE.md` — packet-progression content carried from the originating packet.
 - `THREAD_LOG.md` — running session log; append handoff entries here.
+
+## V1 CLI surface
+
+```
+swarmlord list [--stage X] [--phase Y] [--json]
+swarmlord next [--stage X] [--runner-profile P]
+swarmlord new <slug> [--title TITLE] [--summary TEXT] [--runner-profile P]
+swarmlord render <slug> [--phase Y] [--attempt N] [--clipboard]
+swarmlord run <slug> [--runner PROFILE] [--dry-run]
+swarmlord promote <slug> [--to STAGE] [--reason REASON] [--demote]
+swarmlord validate <slug | --all>
+swarmlord graphify <slug | --repo> [--update]
+swarmlord extract <slug> --target PATH [--no-git]
+swarmlord repair <slug>
+swarmlord serve     # V2 stub — exits 2
+```
 
 ## Implementation entry point for the next agent
 

@@ -2,35 +2,29 @@
 
 This is the implementation repo for SwarmLord. It is **not** a project packet (packets live elsewhere; this codebase scaffolds and operates them).
 
-## Setup (start v1 here)
+## Setup
 
-The repo is initialized and pushed to GitHub at [`TheAmericanMaker/swarmlord`](https://github.com/TheAmericanMaker/swarmlord). To begin v1 implementation:
+V1 is implemented. Standard workflow:
 
-1. Scaffold the package layout with uv:
+```powershell
+cd ~\Documents\GitHub\swarmlord
+uv sync --dev
+uv run pytest          # 78 tests, ~85% coverage
+uv run ruff check
+uv run ruff format --check
+uv run mypy --strict src/swarmlord
+uv run swarmlord --help
+```
 
-   ```powershell
-   cd ~\Documents\GitHub\swarmlord
-   uv init --package
-   ```
+Architecture layers (`src/swarmlord/core`, `packets`, `templating`, `runners`, `memory`, `storage`, `service`, `cli`, `server`) are all wired and pass `mypy --strict`. The FastAPI `server/` module is a V2 scaffold that returns 501 from every endpoint — the import paths are stable so V2 can fill in the bodies without restructuring.
 
-   This creates `pyproject.toml` and `src/swarmlord/__init__.py`.
+CLI entry points (already in `pyproject.toml`):
 
-2. Add the v1 dependencies declared in `spec/build-spec.md` "Core libraries":
-
-   ```powershell
-   uv add pydantic typer "jinja2>=3" ruamel.yaml python-frontmatter rich httpx
-   uv add --dev pytest pytest-cov pytest-asyncio mypy ruff
-   ```
-
-3. Implement against `spec/build-spec.md` "Architecture layers" and "Acceptance Criteria". The first dogfood milestone is `swarmlord list` and `swarmlord render` working against the originating packet at `<your-side-projects-path>/projects/2026-05-sandcastle-like-agent-orchestration/`.
-
-4. Wire the CLI entry point in `pyproject.toml`:
-
-   ```toml
-   [project.scripts]
-   swarmlord = "swarmlord.cli:app"
-   swarm = "swarmlord.cli:app"
-   ```
+```toml
+[project.scripts]
+swarmlord = "swarmlord.cli:app"
+swarm = "swarmlord.cli:app"
+```
 
 ### Optional — mirror to a self-hosted git server
 
@@ -70,10 +64,10 @@ These choices are locked in by `spec/build-spec.md` and `spec/discovery.md`. Do 
 
 ## What's open
 
-- The v1 implementation itself.
-- Whether `pyproject.toml` script entry uses `swarmlord` or also exposes `swarm` as an alias (recommend both via `[project.scripts]`).
-- The exact shape of the `tests_passing` predicate's sandboxed exec (V2-relevant).
-- Any V3 multi-tenancy decisions.
+- The exact shape of the `tests_passing` predicate's sandboxed exec (V2-relevant; V1 runs the command directly in the packet root with `shell=True`).
+- V2 server bodies (FastAPI routes), arq worker queue wiring, Postgres/SQLAlchemy migration.
+- V3 multi-tenancy decisions: tenant isolation strategy, billing model, SSO surface.
+- Real `claude-code-interactive` and `sandcastle-docker` smoke tests against the actual binaries (CI mocks both).
 
 ## Working conventions
 
