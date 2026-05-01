@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Planned for 0.1.2 (agent-ergonomics polish)
+
+- `--json` flag on state-changing commands (`promote`, `run`, `validate`,
+  `extract`, `new`) emitting a uniform `{"ok": bool, "data": ..., "error": ...}`
+  envelope so an LLM agent driving the CLI doesn't have to parse Rich-styled
+  stderr.
+- `--dry-run` flag on `promote` so an agent can preview gate evaluation
+  before committing the transition.
+- Canonical operator skill at `skills/swarmlord-operator/SKILL.md` —
+  teaches a coding agent (Claude Code / Codex / similar) how to drive the
+  CLI conversationally.
+
 ## [0.1.1] — 2026-05-01
 
 ### Added
