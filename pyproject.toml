@@ -36,9 +36,10 @@ server = [
 ]
 
 [project.urls]
-Homepage = "https://swarmlord.dev"
-Repository = "https://github.com/TheAmericanMaker/swarmlord"
-Documentation = "https://docs.swarmlord.dev"
+Homepage = "https://github.com/HuginnIndustries/swarmlord"
+Repository = "https://github.com/HuginnIndustries/swarmlord"
+Issues = "https://github.com/HuginnIndustries/swarmlord/issues"
+Changelog = "https://github.com/HuginnIndustries/swarmlord/blob/main/CHANGELOG.md"
 
 [project.scripts]
 swarmlord = "swarmlord.cli:app"
@@ -58,6 +59,18 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/swarmlord"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/swarmlord",
+    "templates/packet",
+    "tests",
+    "README.md",
+    "GUIDE.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
 
 [tool.ruff]
 line-length = 100

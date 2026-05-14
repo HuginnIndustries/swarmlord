@@ -31,7 +31,7 @@ swarm = "swarmlord.cli:app"
 If you want to keep GitHub as the primary surface and also push to a personal forge (Gitea, Forgejo, etc.), add the second URL as an additional push target on `origin`:
 
 ```powershell
-git remote set-url --add --push origin https://github.com/TheAmericanMaker/swarmlord.git
+git remote set-url --add --push origin https://github.com/HuginnIndustries/swarmlord.git
 git remote set-url --add --push origin ssh://git@<forge-host>:<port>/<owner>/swarmlord.git
 git remote -v   # one (fetch) line, two (push) lines
 ```

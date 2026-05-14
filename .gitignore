@@ -80,3 +80,6 @@ logs/
 
 # Scratch
 scratch/
+
+# Claude Code local settings (CLAUDE.md is committed; .claude/ is per-user)
+.claude/

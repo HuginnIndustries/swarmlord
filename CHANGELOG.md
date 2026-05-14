@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `LICENSE` (MIT), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor
+  Covenant 2.1), and `SECURITY.md` for the open-source release.
+- GitHub issue templates (`bug_report.yml`, `feature_request.yml`),
+  pull-request template, and an issue-template `config.yml` that routes
+  questions to Discussions and security reports to private advisories.
+- Dependabot config covering `pip` and `github-actions` weekly.
+- `.github/workflows/release.yml` — tag-triggered build that publishes to
+  PyPI via Trusted Publisher (OIDC) and creates a GitHub Release with the
+  wheel + sdist attached. Verifies the tag matches the `pyproject.toml`
+  version before publishing.
+- `py.typed` marker (PEP 561) so downstream type-checkers pick up
+  SwarmLord's annotations.
+- Sample packet relocated from `projects/` to `examples/` so the live
+  dispatch area starts empty for new users; existing references in
+  `GUIDE.md` and the index are updated.
+
 ### Planned for 0.1.2 (agent-ergonomics polish)
 
 - `--json` flag on state-changing commands (`promote`, `run`, `validate`,
@@ -127,6 +145,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `.github/workflows/ci.yml`: lint, format check, `mypy --strict`,
   `pytest --cov` with an 80% coverage gate.
 
-[Unreleased]: https://github.com/TheAmericanMaker/swarmlord/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/TheAmericanMaker/swarmlord/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/TheAmericanMaker/swarmlord/releases/tag/v0.1.0
+[Unreleased]: https://github.com/HuginnIndustries/swarmlord/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/HuginnIndustries/swarmlord/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/HuginnIndustries/swarmlord/releases/tag/v0.1.0

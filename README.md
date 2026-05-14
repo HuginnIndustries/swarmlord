@@ -1,5 +1,12 @@
 # SwarmLord
 
+[![CI](https://github.com/HuginnIndustries/swarmlord/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HuginnIndustries/swarmlord/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/swarmlord.svg)](https://pypi.org/project/swarmlord/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
+[![Code style: ruff](https://img.shields.io/badge/ruff-enabled-261230.svg)](https://github.com/astral-sh/ruff)
+
 > The single orchestrator that coordinates a swarm of agent-workers.
 
 SwarmLord reads project packets, picks the next dispatchable work, renders prompts, runs agents in isolated workspaces, gates stage promotions, and ships finished projects out as standalone repos.
@@ -33,13 +40,16 @@ uv run swarmlord promote sample-packet --to discovery
 
 ## What this repo contains
 
+- [`GUIDE.md`](GUIDE.md) — 10-minute walkthrough for new users (install → first packet → lifecycle → extract → customizing gates → troubleshooting).
 - [`AGENTS.md`](AGENTS.md) — primary entry point for agents working on the codebase. Setup steps and what's settled vs open.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, quality gates, PR conventions.
+- [`SECURITY.md`](SECURITY.md) — how to report a vulnerability.
+- [`CHANGELOG.md`](CHANGELOG.md) — release notes in keepachangelog.com format.
 - [`src/swarmlord/`](src/swarmlord) — the Python package. Library + Typer CLI.
 - [`spec/`](spec) — the originating design history, in order: `idea.md`, `discovery.md`, `inspiration-review.md`, `build-spec.md`. Read in that order to follow the reasoning.
 - [`templates/packet/`](templates/packet) — packet scaffolding the `swarmlord new` command copies when creating new packets. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
+- [`examples/`](examples) — runnable sample packet you can poke at (`cd examples && swarmlord list`).
 - [`tests/`](tests) — unit + integration test suite (99 tests; ~85% coverage).
-- [`CHANGELOG.md`](CHANGELOG.md) — release notes in keepachangelog.com format.
-- [`GUIDE.md`](GUIDE.md) — 10-minute walkthrough for new users (install → first packet → lifecycle → extract → customizing gates → troubleshooting).
 - `THREAD_LOG.md` — running session log; append handoff entries here.
 
 ## V1 CLI surface
@@ -76,6 +86,10 @@ The project name is **SwarmLord**. The two halves of the name describe its funct
 
 The CLI binary is `swarmlord` (with `swarm` available as a shorter alias). The Python package is `swarmlord`. If `swarmlord` is taken on PyPI, the package falls back to `swarmlord-orchestrator` while the brand, repo, and CLI binary stay `swarmlord` — the domain is the source of brand truth, not PyPI.
 
+## Contributing
+
+PRs welcome. For anything beyond a typo, please open an issue first to confirm scope. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup and quality gates, and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community expectations.
+
 ## License
 
-TBD at first release.
+[MIT](LICENSE) © James Sesler
