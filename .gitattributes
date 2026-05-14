@@ -1,0 +1,12 @@
+* text=auto
+
+# Lockfiles must stay LF — tools generate them that way and may verify hashes.
+*.lock text eol=lf
+
+# Shell scripts must stay LF for cross-platform compatibility.
+*.sh text eol=lf
+
+# Windows-specific files can stay CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

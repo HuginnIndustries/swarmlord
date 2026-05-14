@@ -23,7 +23,6 @@ MANIFEST
 
 # uv
 .venv/
-uv.lock
 
 # Tests
 .pytest_cache/
