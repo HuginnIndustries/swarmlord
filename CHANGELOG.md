@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-08-26
+
 ### Changed
 
 - **Project scope narrowed to a local, single-user tool.** The planned hosted
@@ -24,6 +28,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `spec/` is now explicitly labelled a historical design record. Each file
   carries a banner saying so, and the build spec's "V2 and V3 Outline" section
   is replaced by a note explaining what was dropped and why.
+- CI actions bumped to current majors: `actions/checkout` v4 → v7,
+  `astral-sh/setup-uv` v3 → v7, `actions/upload-artifact` v4 → v7,
+  `actions/download-artifact` v4 → v8.
+- `claude-code-review.yml` now skips bot-authored pull requests. Bot PRs don't
+  receive repository secrets, so `CLAUDE_CODE_OAUTH_TOKEN` was empty and the
+  job failed on every Dependabot bump.
 
 ### Removed
 
@@ -55,18 +65,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Sample packet relocated from `projects/` to `examples/` so the live
   dispatch area starts empty for new users; existing references in
   `GUIDE.md` and the index are updated.
-
-### Planned for 0.1.2 (agent-ergonomics polish)
-
-- `--json` flag on state-changing commands (`promote`, `run`, `validate`,
-  `extract`, `new`) emitting a uniform `{"ok": bool, "data": ..., "error": ...}`
-  envelope so an LLM agent driving the CLI doesn't have to parse Rich-styled
-  stderr.
-- `--dry-run` flag on `promote` so an agent can preview gate evaluation
-  before committing the transition.
-- Canonical operator skill at `skills/swarmlord-operator/SKILL.md` —
-  teaches a coding agent (Claude Code / Codex / similar) how to drive the
-  CLI conversationally.
+- Canonical operator skill at `skills/swarmlord-operator/SKILL.md` — teaches a
+  coding agent (Claude Code / Codex / similar) how to drive the CLI
+  conversationally.
 
 ## [0.1.1] — 2026-05-01
 
@@ -177,6 +178,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `.github/workflows/ci.yml`: lint, format check, `mypy --strict`,
   `pytest --cov` with an 80% coverage gate.
 
-[Unreleased]: https://github.com/HuginnIndustries/swarmlord/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/HuginnIndustries/swarmlord/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/HuginnIndustries/swarmlord/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/HuginnIndustries/swarmlord/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/HuginnIndustries/swarmlord/releases/tag/v0.1.0

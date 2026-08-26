@@ -17,6 +17,10 @@ idea → discovery → spec_ready → build_ready → extracted → archived
         └── each arrow is guarded by gates that must evaluate true
 ```
 
+![A terminal session: creating a packet, listing the backlog, asking what to work on, promoting through two stages with their gates passing, then a third promotion refused because EXTRACT.md still has unresolved checkboxes — exiting 2.](docs/demo.svg)
+
+<sup>Real output, not a mock-up — regenerate it any time with `uv run python scripts/make_demo_svg.py`.</sup>
+
 ## Try it in two minutes
 
 Requires [`uv`](https://docs.astral.sh/uv/) and Python 3.12.
@@ -27,29 +31,12 @@ uv tool install git+https://github.com/HuginnIndustries/swarmlord
 mkdir my-backlog && cd my-backlog
 swarmlord new csv-linter --title "CSV Linter" \
   --summary "Catch malformed rows before they hit the warehouse"
+
+swarmlord list     # the backlog, with each packet's stage
+swarmlord next     # what to work on, and the next concrete action
 ```
 
-`swarmlord list` shows the backlog:
-
-```
-                              packets (1)
-┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ slug               ┃ stage ┃ phase ┃ runner ┃ summary                   ┃
-┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ 2026-08-csv-linter │ idea  │ idea  │ -      │ Catch malformed rows      │
-│                    │       │       │        │ before they hit the       │
-│                    │       │       │        │ warehouse                 │
-└────────────────────┴───────┴───────┴────────┴───────────────────────────┘
-```
-
-`swarmlord next` picks the work and names the action:
-
-```
-2026-08-csv-linter (idea)
-  next: Capture the raw idea in spec/idea.md.
-```
-
-And a promotion that hasn't earned it gets refused, with the reason and a non-zero exit code:
+The part worth pausing on is what happens when a promotion hasn't earned it:
 
 ```sh
 $ swarmlord promote 2026-08-csv-linter --to build_ready
@@ -145,6 +132,7 @@ swarmlord repair <slug>
 - [`tests/`](tests) — unit and integration suite.
 - [`templates/packet/`](templates/packet) — scaffolding `swarmlord new` copies. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
 - [`examples/`](examples) — a runnable sample packet (`cd examples && swarmlord list`).
+- [`scripts/make_demo_svg.py`](scripts/make_demo_svg.py) — regenerates the demo above by running the CLI for real and rendering the session to SVG.
 - [`skills/`](skills) — an operator skill that lets an agent drive the CLI from natural language.
 - [`spec/`](spec) — the original design record, kept as history: `idea.md` → `discovery.md` → `inspiration-review.md` → `build-spec.md`.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`CHANGELOG.md`](CHANGELOG.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
