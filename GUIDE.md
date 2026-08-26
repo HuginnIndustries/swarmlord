@@ -17,14 +17,14 @@ for an LLM agent to act on, and gates promotions between stages so a packet
 can't move forward until specific conditions are met (the section is filled,
 the open-questions list is empty, EXTRACT.md is resolved, etc.).
 
-V1 is a local CLI plus a Python library. You drive it from your shell.
+SwarmLord is a local CLI plus a Python library. You drive it from your shell.
 
 ## 1. Install
 
 You'll need [`uv`](https://docs.astral.sh/uv/) and Python 3.12. From the
 swarmlord repo:
 
-```powershell
+```sh
 uv tool install --editable .
 swarmlord --version
 ```
@@ -38,7 +38,7 @@ To work on the source, run `uv sync --dev` instead and use `uv run swarmlord`.
 with a `projects/` subdirectory works. The CLI always looks at the current
 working directory.
 
-```powershell
+```sh
 mkdir my-projects-root
 cd my-projects-root
 swarmlord new my-thing --title "My Thing" --summary "A short pitch."
@@ -77,7 +77,7 @@ runner_profile: null   # null | manual | claude-code-interactive | sandcastle-do
 
 Schema-validate it any time:
 
-```powershell
+```sh
 swarmlord validate 2026-MM-my-thing
 ```
 
@@ -94,7 +94,7 @@ files). Backward transitions are always allowed if you pass `--reason`.
 
 Here's the full loop, top to bottom:
 
-```powershell
+```sh
 swarmlord list                                  # see what's there
 swarmlord next                                  # what should I work on?
 swarmlord render 2026-MM-my-thing               # produce a prompt for the current phase
@@ -139,7 +139,7 @@ runner. V1 ships three runner profiles:
   Sandcastle TypeScript template ships with a `TODO(v1-smoke)` flag —
   it has not been verified end-to-end against a real Sandcastle install.*
 
-```powershell
+```sh
 swarmlord run 2026-MM-my-thing                            # uses packet's runner_profile
 swarmlord run 2026-MM-my-thing --runner manual            # force manual
 swarmlord run 2026-MM-my-thing --runner manual --dry-run  # render only, don't dispatch
@@ -151,7 +151,7 @@ crashes, the failed record persists with the exception text.
 
 ## 5. Reading history
 
-```powershell
+```sh
 swarmlord log 2026-MM-my-thing                            # last 20 runs
 swarmlord log 2026-MM-my-thing --gates --transitions      # full audit
 swarmlord log 2026-MM-my-thing --json | jq                # machine-readable
@@ -167,8 +167,8 @@ and stage transitions (from → to with reason).
 When a packet has reached `build_ready` and its `EXTRACT.md` checkboxes are
 all resolved, graduate it to a standalone repo:
 
-```powershell
-swarmlord extract 2026-MM-my-thing --target ~\Documents\GitHub\my-thing
+```sh
+swarmlord extract 2026-MM-my-thing --target ~/code/my-thing
 ```
 
 This copies `README.md`, `GUIDE.md`, `THREAD_LOG.md`, `EXTRACT.md`, `spec/`,
@@ -178,7 +178,7 @@ destination path. The original packet stays as a historical record.
 
 If a packet isn't quite ready and you need to ship anyway:
 
-```powershell
+```sh
 swarmlord extract 2026-MM-my-thing --target <path> --force
 ```
 
@@ -266,7 +266,7 @@ The promote sequence writes `status.yaml`, then appends to `THREAD_LOG.md`,
 then updates `projects/INDEX.md`. If the process was interrupted between
 those steps, the on-disk packet may be inconsistent. Run:
 
-```powershell
+```sh
 swarmlord repair <slug>
 ```
 
@@ -286,9 +286,10 @@ terminal or use `swarmlord list --json` for clean output.
 
 ## Where to go next
 
-- [`spec/build-spec.md`](spec/build-spec.md) — the implementation contract.
-  Read this if you want the full type system, the runner protocol, the V2/V3
-  outline, or the test plan.
+- [`spec/build-spec.md`](spec/build-spec.md) — the original design record.
+  Read this if you want the full type system, the runner protocol, or the
+  test plan. Note it is history, not a roadmap: the hosted and multi-tenant
+  phases it sketches were dropped.
 - [`AGENTS.md`](AGENTS.md) — onboarding doc for someone (or some agent)
   working on the swarmlord codebase itself. Read this if you want to
   contribute, not just use.

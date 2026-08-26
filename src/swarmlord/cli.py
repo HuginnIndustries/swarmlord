@@ -1,8 +1,9 @@
 """Typer entry point — thin shell over :mod:`swarmlord.service`.
 
 The CLI handles argument parsing, output formatting, and exit codes. All
-logic that is not strictly UI lives in the service module so the V2 HTTP
-surface can call the same functions without going through Typer.
+logic that is not strictly UI lives in the service module, so anything that
+embeds SwarmLord as a library calls the same functions without going
+through Typer.
 """
 
 from __future__ import annotations
@@ -500,15 +501,6 @@ def log_cmd(
                 str(t.get("reason") or "-"),
             )
         console.print(ttable)
-
-
-@app.command("serve")
-def serve_cmd(
-    port: int = typer.Option(8000, "--port"),
-) -> None:
-    """Start the FastAPI server (V2)."""
-    err_console.print("[yellow]serve is a V2 feature; the server module is a stub in V1.[/yellow]")
-    raise typer.Exit(code=2)
 
 
 def main() -> None:  # pragma: no cover - thin shim

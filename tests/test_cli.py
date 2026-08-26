@@ -82,12 +82,6 @@ def test_promote_failing_gate_exits_2(repo_root: Path) -> None:
     assert result.exit_code == 2
 
 
-def test_serve_is_v2_stub() -> None:
-    runner = CliRunner()
-    result = runner.invoke(app, ["serve"])
-    assert result.exit_code == 2
-
-
 def test_next_prints_top_candidate(repo_root: Path) -> None:
     make_packet(repo_root, slug="2026-05-a")
     with _cd(repo_root):

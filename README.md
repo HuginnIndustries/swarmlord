@@ -1,58 +1,126 @@
 # SwarmLord
 
 [![CI](https://github.com/HuginnIndustries/swarmlord/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HuginnIndustries/swarmlord/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/swarmlord.svg)](https://pypi.org/project/swarmlord/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
 [![Code style: ruff](https://img.shields.io/badge/ruff-enabled-261230.svg)](https://github.com/astral-sh/ruff)
 
-> The single orchestrator that coordinates a swarm of agent-workers.
+**A CLI that keeps a backlog of software projects moving through a typed state machine, and hands each step to a coding agent with the right prompt.**
 
-SwarmLord reads project packets, picks the next dispatchable work, renders prompts, runs agents in isolated workspaces, gates stage promotions, and ships finished projects out as standalone repos.
+Agent tooling is good at doing one task and bad at knowing which task is next. SwarmLord fills that gap. You keep your projects on disk as *packets* — a directory of markdown specs plus a typed `workflow/status.yaml`. SwarmLord reads them, tells you which one is ready for work, renders the prompt for that specific stage, dispatches it to a runner, and refuses to advance a project past a stage until machine-checkable conditions are actually met.
 
-Domain: [swarmlord.dev](https://swarmlord.dev) (owned, planned customer-facing surface for the V3 SaaS phase).
+The interesting part isn't the agent invocation. It's that **"is this project ready for the next stage?" is a typed predicate evaluated against files on disk**, not a judgment call.
 
-## Status
-
-V1 implemented and dogfooded; current release is **0.1.1**. Python 3.12 package, Typer CLI, Pydantic v2 schemas, Jinja2 strict templating, atomic packet writes, SQLite run history (readable via `swarmlord log <slug>`), and runner registry (manual / claude-code-interactive / sandcastle-docker). FastAPI server scaffold returns 501s, ready for V2. Tests, lint, format, and `mypy --strict` all pass; coverage gate at 80% with ~85% reported across 99 tests. Release notes in [`CHANGELOG.md`](CHANGELOG.md).
-
-**New here?** Read [`GUIDE.md`](GUIDE.md) — a 10-minute walkthrough from install through extracting a packet end-to-end.
-
-```powershell
-# Install (editable)
-cd ~\Documents\GitHub\swarmlord
-uv sync --dev
-
-# Smoke
-uv run swarmlord --help
-uv run swarmlord list
-uv run swarmlord new sample-packet --title "Sample" --summary "A sample packet"
-uv run swarmlord render sample-packet
-uv run swarmlord promote sample-packet --to discovery
+```
+idea → discovery → spec_ready → build_ready → extracted → archived
+        └── each arrow is guarded by gates that must evaluate true
 ```
 
-## Roadmap
+## Try it in two minutes
 
-- **V1** — local CLI + Python library. Typer + Pydantic v2 + Jinja2 (strict) + ruamel.yaml + SQLite for run history. Sandcastle invoked as a subprocess. Manual and interactive Claude Code runners ship alongside Sandcastle Docker.
-- **V2** — FastAPI server + arq worker queue + Postgres. Same core, hosted as a daemon.
-- **V3** — SaaS multi-tenancy. Auth, per-tenant isolation, usage metering, admin UI. Customer-facing surface at [swarmlord.dev](https://swarmlord.dev).
+Requires [`uv`](https://docs.astral.sh/uv/) and Python 3.12.
 
-## What this repo contains
+```sh
+uv tool install git+https://github.com/HuginnIndustries/swarmlord
 
-- [`GUIDE.md`](GUIDE.md) — 10-minute walkthrough for new users (install → first packet → lifecycle → extract → customizing gates → troubleshooting).
-- [`AGENTS.md`](AGENTS.md) — primary entry point for agents working on the codebase. Setup steps and what's settled vs open.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, quality gates, PR conventions.
-- [`SECURITY.md`](SECURITY.md) — how to report a vulnerability.
-- [`CHANGELOG.md`](CHANGELOG.md) — release notes in keepachangelog.com format.
-- [`src/swarmlord/`](src/swarmlord) — the Python package. Library + Typer CLI.
-- [`spec/`](spec) — the originating design history, in order: `idea.md`, `discovery.md`, `inspiration-review.md`, `build-spec.md`. Read in that order to follow the reasoning.
-- [`templates/packet/`](templates/packet) — packet scaffolding the `swarmlord new` command copies when creating new packets. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
-- [`examples/`](examples) — runnable sample packet you can poke at (`cd examples && swarmlord list`).
-- [`tests/`](tests) — unit + integration test suite (99 tests; ~85% coverage).
-- `THREAD_LOG.md` — running session log; append handoff entries here.
+mkdir my-backlog && cd my-backlog
+swarmlord new csv-linter --title "CSV Linter" \
+  --summary "Catch malformed rows before they hit the warehouse"
+```
 
-## V1 CLI surface
+`swarmlord list` shows the backlog:
+
+```
+                              packets (1)
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ slug               ┃ stage ┃ phase ┃ runner ┃ summary                   ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 2026-08-csv-linter │ idea  │ idea  │ -      │ Catch malformed rows      │
+│                    │       │       │        │ before they hit the       │
+│                    │       │       │        │ warehouse                 │
+└────────────────────┴───────┴───────┴────────┴───────────────────────────┘
+```
+
+`swarmlord next` picks the work and names the action:
+
+```
+2026-08-csv-linter (idea)
+  next: Capture the raw idea in spec/idea.md.
+```
+
+And a promotion that hasn't earned it gets refused, with the reason and a non-zero exit code:
+
+```sh
+$ swarmlord promote 2026-08-csv-linter --to build_ready
+gates failed:
+  - EXTRACT.md has 10 unresolved checkbox(es); first: line 7:
+    - [ ] `spec/build-spec.md` is complete enough for implementation.
+$ echo $?
+2
+```
+
+That exit code matters: promotions are scriptable and CI-checkable, because the gate result is data rather than prose.
+
+New here? [`GUIDE.md`](GUIDE.md) is a 10-minute walkthrough from install through extracting a finished packet into its own repo.
+
+## How it works
+
+**Packets.** A packet is `./projects/<YYYY-MM-slug>/` holding `spec/` markdown, an `EXTRACT.md` shipping checklist, a `THREAD_LOG.md`, and `workflow/status.yaml` — the typed state. Nothing is hidden in a database; the directory *is* the project, and it stays readable and diffable in git.
+
+**Stages and phases.** Stages (`idea → discovery → spec_ready → build_ready → extracted → archived`) track how far along a project is. Phases (`idea`, `discovery`, `build_spec`, `extraction`, `memory`) describe the work happening inside a stage. Both are code-defined enums, and `LEGAL_TRANSITIONS` in `core/stages.py` is the single source of truth — a transition that isn't in that table cannot happen. Backward transitions are always allowed but require `--reason`, which gets written into the packet's `THREAD_LOG.md`.
+
+**Gates.** Each forward transition is guarded by predicates declared in the packet's own `workflow/WORKFLOW.md` front matter:
+
+```yaml
+gates:
+  promote_to_spec_ready:
+    - kind: file_section_filled
+      path: spec/discovery.md
+      section: "## Recommended Direction"
+    - kind: yaml_field_empty
+      path: workflow/status.yaml
+      field: open_questions
+```
+
+The predicate vocabulary (`file_exists`, `file_section_filled`, `yaml_field_empty`, `yaml_field_equals`, `extract_md_resolved`, `tests_passing`) is a Pydantic v2 discriminated union, so a typo in `kind:` is a load-time error rather than a gate that silently never fires. Every file-targeted predicate is path-confined to the packet directory — `..` and absolute paths are rejected.
+
+**Prompts.** Rendered with Jinja2 under `StrictUndefined`, so a missing template variable is an error instead of a silently empty prompt. User content is inserted as already-rendered strings; the engine never re-evaluates packet data as a template.
+
+**Runners.** A small `Runner` protocol with three implementations: `manual` (render the prompt, copy it, paste it wherever you like), `claude-code-interactive` (hand off to the Claude Code CLI), and `sandcastle-docker` (dispatch into a container). Every dispatch is recorded in a local SQLite run history you can read back with `swarmlord log <slug>`.
+
+## Architecture
+
+Layered top-to-bottom; each layer imports only from layers below it.
+
+```
+cli.py          Typer entry point — parses args, formats output, nothing else
+service.py      Composes the layers below into user operations
+runners/        Runner protocol + manual / claude-code / sandcastle + registry
+templating/     Jinja2 with StrictUndefined
+packets/        Disk I/O: discovery, reader, atomic writer, INDEX/THREAD_LOG
+memory/         Graphify integration, invoked on demand
+storage/        SQLite run history in the platform data dir
+core/           Stage/Phase enums, transition table, Pydantic models,
+                predicate vocabulary, gate evaluator, typed errors
+```
+
+Two rules hold that structure together. Writes to `status.yaml` go through `packets/writer.py`, which uses temp-file-and-rename so an interrupted run can't leave a half-written state file — and `swarmlord repair` re-derives consistent state if one ever does. And the CLI stays thin, so the service functions are usable as a library without going through Typer.
+
+## Engineering standards
+
+Four gates run on every push ([`ci.yml`](.github/workflows/ci.yml), Ubuntu / Python 3.12) and must pass before merge:
+
+| Gate | Command | State |
+| --- | --- | --- |
+| Lint | `uv run ruff check` | clean |
+| Format | `uv run ruff format --check` | clean |
+| Types | `uv run mypy --strict src/swarmlord` | clean, 29 source files, no `Any` escapes |
+| Tests | `uv run pytest --cov` | 98 tests, ~85% coverage, gate at 80% |
+
+`make check` runs all four. `pytest` is configured with `filterwarnings = ["error"]`, so an unhandled warning fails the suite.
+
+## Command surface
 
 ```
 swarmlord list [--stage X] [--phase Y] [--json]
@@ -66,29 +134,34 @@ swarmlord graphify <slug | --repo> [--update]
 swarmlord extract <slug> --target PATH [--no-git] [--force]
 swarmlord log <slug> [--limit N] [--gates] [--transitions] [--json]
 swarmlord repair <slug>
-swarmlord serve     # V2 stub — exits 2
 ```
 
-## Implementation entry point for the next agent
+`--json` on `list` and `log` emits machine-readable output for scripting.
 
-1. Read [`AGENTS.md`](AGENTS.md) — Setup steps, what's settled, and working conventions.
-2. Read [`spec/build-spec.md`](spec/build-spec.md) — everything: outcome, user workflows, architecture layers, schemas, runner protocol, CLI surface, acceptance criteria, test plan, and V2/V3 outline.
-3. Read [`spec/inspiration-review.md`](spec/inspiration-review.md) only if you want the trade-off reasoning behind the architecture.
-4. Implement v1 per the build spec. Do not re-decide architecture or naming — those are settled.
+## Repository map
+
+- [`GUIDE.md`](GUIDE.md) — 10-minute walkthrough: install → first packet → lifecycle → extract → custom gates → troubleshooting.
+- [`src/swarmlord/`](src/swarmlord) — the package. Library plus Typer CLI.
+- [`tests/`](tests) — unit and integration suite.
+- [`templates/packet/`](templates/packet) — scaffolding `swarmlord new` copies. Repo-local templates take precedence over the bundled fallback in `src/swarmlord/_templates/packet/`.
+- [`examples/`](examples) — a runnable sample packet (`cd examples && swarmlord list`).
+- [`skills/`](skills) — an operator skill that lets an agent drive the CLI from natural language.
+- [`spec/`](spec) — the original design record, kept as history: `idea.md` → `discovery.md` → `inspiration-review.md` → `build-spec.md`.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`CHANGELOG.md`](CHANGELOG.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+## Scope
+
+SwarmLord is a local, single-user tool, and that's the whole design. There is no hosted service, no server component, and no multi-tenancy — state lives in a directory you own and a SQLite file on your machine. Ideas that would push it toward being a platform are out of scope; ideas that make the local tool sharper are welcome.
 
 ## Origin
 
-This project began as a packet titled "Sandcastle-like Agent Orchestration" inside a `side-projects` backlog repo. The originating packet still lives at `side-projects/projects/2026-05-sandcastle-like-agent-orchestration/` as the historical record of how the design evolved from "sandcastle-like" to a layered system that combines lessons from Sandcastle (sandbox/branch primitives), Symphony (`WORKFLOW.md` policy + state machine), Paperclip (heartbeats + governance + budgets), Hermes (pluggable memory seam), and Graphify (structural memory layer).
+SwarmLord started as one entry in a personal side-project backlog — a packet describing an agent orchestrator — and became the tool that now operates that backlog. The design record in [`spec/`](spec) traces how it got there, drawing on Sandcastle (sandbox and branch primitives), Symphony (`WORKFLOW.md` policy plus a state machine), Paperclip (heartbeats, governance, budgets), Hermes (a pluggable memory seam), and Graphify (structural memory).
 
-## Naming note
-
-The project name is **SwarmLord**. The two halves of the name describe its function: `swarm` is the many parallel agent-workers running in their own sandboxes, and `lord` is the singular orchestrator that coordinates them.
-
-The CLI binary is `swarmlord` (with `swarm` available as a shorter alias). The Python package is `swarmlord`. If `swarmlord` is taken on PyPI, the package falls back to `swarmlord-orchestrator` while the brand, repo, and CLI binary stay `swarmlord` — the domain is the source of brand truth, not PyPI.
+The name splits the way the system does: *swarm* is the parallel agent-workers, *lord* is the one process that decides what they work on.
 
 ## Contributing
 
-PRs welcome. For anything beyond a typo, please open an issue first to confirm scope. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup and quality gates, and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community expectations.
+Contributions welcome. For anything beyond a typo, open an issue first so we can agree on scope. [`CONTRIBUTING.md`](CONTRIBUTING.md) covers dev setup and the quality gates; [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) covers community expectations.
 
 ## License
 

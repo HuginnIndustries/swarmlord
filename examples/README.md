@@ -2,7 +2,7 @@
 
 Runnable sample packets you can drive with the CLI without scaffolding your own. The CLI scans `./projects/<slug>/workflow/status.yaml` from the current working directory, so to use these:
 
-```powershell
+```sh
 cd examples
 swarmlord list
 swarmlord render 2026-05-sample-packet

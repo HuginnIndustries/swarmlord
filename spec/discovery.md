@@ -1,5 +1,11 @@
 # Discovery
 
+> **Historical design record.** This file captures the design as it stood
+> before implementation. It is kept for provenance, not as a live roadmap —
+> where it describes hosted, server, or multi-tenant phases, those were
+> dropped: SwarmLord shipped as a local single-user CLI and stays that way.
+> `README.md` and `AGENTS.md` describe the project as it actually is.
+
 ## Goal
 
 Define a practical orchestration workflow that can operate on this repo's project packets and move them from rough ideas to build-ready projects.

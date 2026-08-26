@@ -16,9 +16,10 @@ This is **the implementation repo**, not a packet. Packets live in `projects/` a
 
 ## Commands
 
-```powershell
+```sh
 uv sync --dev                                  # install deps including dev tools
-uv run pytest                                  # 99 tests, ~85% coverage; 80% gate
+make check                                     # all four gates at once
+uv run pytest                                  # 98 tests, ~85% coverage; 80% gate
 uv run pytest tests/test_service.py            # single file
 uv run pytest tests/test_service.py::test_x    # single test
 uv run pytest -k "promote"                     # by keyword
@@ -30,7 +31,7 @@ uv run swarmlord --help                        # smoke
 
 All four (ruff check, ruff format --check, mypy --strict, pytest --cov) must pass before merging. CI on `.github/workflows/ci.yml` runs the same four on Ubuntu / Python 3.12.
 
-Coverage gate is 80% globally (`fail_under = 80` in `pyproject.toml`). `server/` and `runners/claude_code.py` are omitted from coverage.
+Coverage gate is 80% globally (`fail_under = 80` in `pyproject.toml`). `runners/claude_code.py` is omitted from coverage.
 
 `pytest` runs with `filterwarnings = ["error", ...]` — any unhandled warning fails the test.
 
@@ -48,17 +49,15 @@ templating/     Jinja2 with StrictUndefined; user content is inserted as
                 already-rendered strings, never re-evaluated by the engine
 packets/        Disk I/O: discovery, reader, writer (atomic temp+rename),
                 INDEX.md upserts, THREAD_LOG.md appends
-memory/         graphify on-demand (auto-run is V2)
+memory/         graphify on-demand
 storage/        SQLite run history at ~/.local/share/swarmlord/runs.db
                 (POSIX) or %APPDATA%\swarmlord\runs.db (Windows)
 core/           Domain primitives — Stage/Phase enums, transition table,
                 Pydantic v2 models, predicate vocabulary, gate evaluator,
                 typed errors
-server/         FastAPI scaffold; every endpoint returns 501 in V1. Import
-                paths are stable so V2 can fill bodies without restructure.
 ```
 
-The CLI is intentionally thin so the V2 HTTP server can call the same `service` functions without going through Typer.
+The CLI is intentionally thin so anything embedding SwarmLord as a library can call the same `service` functions without going through Typer.
 
 ### State machine
 
@@ -82,12 +81,12 @@ An empty gate list (`promote_to_spec_ready: []`) in a packet's `WORKFLOW.md` is 
 - **StrictUndefined everywhere.** Template rendering treats any missing variable as an error. User-supplied content is inserted as already-rendered strings; the engine never re-evaluates it.
 - **Pydantic models forbid extras.** `_StrictModel` sets `extra="forbid"` and `validate_assignment=True`. If a field is missing from a real-world packet, prefer adding it to the schema over loosening the config. `extracted_to`/`extracted_on` are precedent — they exist because old packets carried them.
 - **`runners/claude_code.py` is excluded from coverage** — it shells out to a real binary CI can't run. Don't add unit tests that exercise the subprocess.
-- **`server/` returns 501 from every route by design.** Don't fill in bodies as drive-by work; that's the V2 milestone.
+- **No server, no hosted phase.** SwarmLord is a local single-user CLI. Don't add an HTTP surface, auth, or tenancy — the FastAPI scaffold that once reserved those paths was deliberately removed.
 - **Convert relative dates** before persisting anything user-visible: slugs and `status.yaml` use absolute `YYYY-MM-DD`.
 
 ## Locked-in choices (don't relitigate without explicit user direction)
 
-Python 3.12 via `uv`; Pydantic v2; Jinja2 `StrictUndefined`; Typer; SQLite in V1 / Postgres in V2; runners limited to manual / claude-code-interactive / sandcastle-docker; stages/phases as code-defined enums; gates as Pydantic predicates; Graphify on-demand only in V1; FastAPI scaffold now, bodies in V2; brand and CLI name `swarmlord`.
+Python 3.12 via `uv`; Pydantic v2; Jinja2 `StrictUndefined`; Typer; SQLite for run history; runners limited to manual / claude-code-interactive / sandcastle-docker; stages/phases as code-defined enums; gates as Pydantic predicates; Graphify on demand; local single-user scope with no server or hosted phase; brand and CLI name `swarmlord`.
 
 ## Finishing meaningful work
 

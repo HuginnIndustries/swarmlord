@@ -5,13 +5,13 @@ Thanks for considering a contribution. SwarmLord is a small, opinionated tool �
 ## Before opening a PR
 
 - For anything beyond a typo or one-line fix, open an issue first to confirm scope. This avoids wasted work on changes we'd reject for design reasons.
-- Read [`AGENTS.md`](AGENTS.md) and [`spec/build-spec.md`](spec/build-spec.md). Several decisions are locked in (Pydantic v2, Jinja2 `StrictUndefined`, Typer, SQLite-in-V1, the runner set, the stage/phase enums) — please don't relitigate them in a PR.
+- Read [`AGENTS.md`](AGENTS.md) and [`spec/build-spec.md`](spec/build-spec.md). Several decisions are locked in (Pydantic v2, Jinja2 `StrictUndefined`, Typer, SQLite, the runner set, the stage/phase enums) — please don't relitigate them in a PR.
 
 ## Dev setup
 
 You need [`uv`](https://docs.astral.sh/uv/) and Python 3.12.
 
-```powershell
+```sh
 git clone https://github.com/HuginnIndustries/swarmlord.git
 cd swarmlord
 uv sync --dev
@@ -22,16 +22,22 @@ uv run swarmlord --help
 
 All four must pass locally and in CI before a PR can merge:
 
-```powershell
+```sh
+make check                          # all four at once
+```
+
+Or individually:
+
+```sh
 uv run ruff check
 uv run ruff format --check          # drop --check to auto-format
 uv run mypy --strict src/swarmlord
-uv run pytest                       # 99 tests, ~85% coverage; gate is 80%
+uv run pytest                       # 98 tests, ~85% coverage; gate is 80%
 ```
 
 Useful subsets:
 
-```powershell
+```sh
 uv run pytest tests/test_service.py             # one file
 uv run pytest tests/test_service.py::test_x     # one test
 uv run pytest -k promote                        # by keyword
@@ -52,8 +58,8 @@ uv run pytest -k promote                        # by keyword
 - Speculative abstractions or "future-proofing" beyond the task at hand. Three similar lines is better than a premature abstraction.
 - Comments that restate what the code does. Only comment the *why* when it's non-obvious.
 - Backwards-compatibility shims, "removed-feature" placeholders, or unused re-exports.
-- Adding behavior to `server/` — every endpoint returns 501 on purpose; that's V2 work.
 - Adding unit tests against `runners/claude_code.py` — it shells out to a real binary CI can't run, and is excluded from coverage.
+- Anything that turns SwarmLord into a service: an HTTP server, auth, tenancy, or hosted state. It is a local single-user tool by design.
 
 ## PR checklist
 

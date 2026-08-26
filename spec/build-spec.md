@@ -1,14 +1,20 @@
 # Build Spec
 
+> **Historical design record.** This file captures the design as it stood
+> before implementation. It is kept for provenance, not as a live roadmap —
+> where it describes hosted, server, or multi-tenant phases, those were
+> dropped: SwarmLord shipped as a local single-user CLI and stays that way.
+> `README.md` and `AGENTS.md` describe the project as it actually is.
+
 This file is implementation-ready. Another agent should be able to build v1 from it without making structural product decisions. Architectural choices, schemas, interfaces, and acceptance criteria are settled here. Trade-off discussion that led to these choices lives in `spec/inspiration-review.md` and `spec/discovery.md`.
 
-Project name: **SwarmLord**. CLI binary: `swarmlord` (with `swarm` available as an alias if desired). Python package: `swarmlord`. Repo name at extraction: `swarmlord`. Domain: `swarmlord.dev` (owned, planned customer-facing surface for V3 SaaS). The originating folder slug `2026-05-sandcastle-like-agent-orchestration` remains as a historical trace of where the idea started; the implementation does not inherit it.
+Project name: **SwarmLord**. CLI binary: `swarmlord` (with `swarm` available as an alias if desired). Python package: `swarmlord`. Repo name at extraction: `swarmlord`. The originating folder slug `2026-05-sandcastle-like-agent-orchestration` remains as a historical trace of where the idea started; the implementation does not inherit it.
 
 ## Outcome
 
 A Python service that turns side-project packets into agent-executable work. The packet model is the same one this repo already uses: a folder under `projects/<slug>/` containing durable Markdown specs, a `workflow/status.yaml` of state, and an optional `workflow/WORKFLOW.md` policy file. The service reads packets, knows which one is dispatchable, renders a prompt for the packet's current phase, dispatches the prompt to a runner (manual, interactive Claude Code, or Sandcastle Docker), and writes results back into the packet atomically.
 
-V1 ships as a local CLI plus a Python library. V2 adds a FastAPI HTTP surface and a worker queue so the same engine can run as a server-hosted daemon. V3 layers multi-tenant SaaS concerns (tenant isolation, auth, billing, admin UI) on top of V2 without changing the core. The architecture explicitly plans for V2 and V3; v1 must not foreclose them.
+V1 ships as a local CLI plus a Python library. *(As originally written, this paragraph went on to plan a V2 FastAPI/worker-queue phase and a V3 hosted multi-tenant phase. Both were dropped — see* Later Phases — Dropped *below. The layered architecture below survives on its own merits: it keeps the CLI thin and the service layer callable as a library.)*
 
 The service replaces the in-repo `pipeline.yaml` with code. Phases, stages, and state transitions become typed first-class concepts in the orchestrator; YAML and Markdown remain the per-packet content layer.
 
@@ -40,7 +46,7 @@ User runs `swarmlord extract <slug> --target ~/Documents/GitHub/<repo>`. The orc
 
 ### Workflow G — Run as a server (V2, scaffolded in V1)
 
-The same core library is consumable from a FastAPI app. `swarmlord serve` boots a local instance for development; production deploys via container. API surface mirrors the CLI: list packets, render prompts, dispatch runs, evaluate gates, promote stages, watch packet directory for changes. Long-running dispatches are handled by a worker process consuming a queue. V1 scaffolds the server module but does not implement endpoints; V2 fills it in.
+*(Dropped: this paragraph described a FastAPI surface mirroring the CLI, a `swarmlord serve` command, and a worker queue for long-running dispatches. No server ships. The durable part of the idea is that the service layer is consumable as a library — that holds, and the CLI is a thin shell over it.)*
 
 ## Implementation Direction
 
@@ -93,18 +99,8 @@ src/swarmlord/
         graphify.py        # Subprocess wrapper around the graphify CLI
     storage/
         __init__.py
-        run_history.py     # SQLite-backed run record store (V1)
-                           # Postgres path comes in V2 via SQLAlchemy
+        run_history.py     # SQLite-backed run record store
     cli.py                 # Typer entry point; thin layer over the library
-    server/                # V2 scaffold; v1 leaves stubs only
-        __init__.py
-        app.py             # FastAPI app factory
-        api/
-            __init__.py
-            packets.py
-            runs.py
-            gates.py
-        worker.py          # arq worker entry
 tests/
     fixtures/
         packets/           # Sample packets in every stage
@@ -356,8 +352,6 @@ swarmlord extract <slug> --target PATH
 swarmlord repair <slug>
     Re-derive consistent state from disk after a partial-write failure.
 
-swarmlord serve [--port N]
-    V2: start the FastAPI server. V1 prints "not implemented".
 ```
 
 ### `WORKFLOW.md` location and shape
@@ -437,7 +431,7 @@ The implementation is correct when:
 15. `mypy --strict` passes on the entire package. `ruff check` and `ruff format --check` pass.
 16. Test coverage is at least 80% on `core/`, `packets/`, `templating/`, `runners/manual.py`, and the gate evaluators. `runners/sandcastle.py` is covered against a subprocess mock.
 17. The package installs cleanly via `uv pip install -e .` and `swarmlord --help` prints the full command list.
-18. The `server/` module is present as a scaffold (FastAPI app factory that returns 501 on every endpoint) so V2 work can begin without restructuring the package.
+18. ~~The `server/` module is present as a scaffold.~~ Dropped — the scaffold was removed when the hosted phases were cancelled.
 
 ## Test Plan
 
@@ -481,17 +475,23 @@ Extraction steps:
 3. Copy `templates/packet/` from this packet into the new repo's `templates/packet/`.
 4. Implement the package per the directory layout above.
 5. Add CI workflow (lint, type-check, test).
-6. Add a `README.md` that explains: what the orchestrator does, how to install, how to run `swarmlord list / next / render / run / promote / graphify`, the v1 → v2 → v3 roadmap.
+6. Add a `README.md` that explains: what the orchestrator does, how to install, and how to run `swarmlord list / next / render / run / promote / graphify`.
 7. Update `projects/INDEX.md` in this repo to note the extracted destination.
 8. Update this packet's `status.yaml.stage` to `extracted`.
 
 The orchestrator can subsequently be installed back into this side-projects repo via `uv pip install <path-or-url>` so it operates on the very repo that designed it. That's the dogfood loop.
 
-## V2 and V3 Outline (informational; not implementer scope)
+## Later Phases — Dropped
 
-V2 — server: FastAPI app exposing the same operations as the CLI; arq worker queue for background dispatch; webhook receivers for git events and tracker events; `swarmlord serve` boots the local dev instance; Postgres replaces SQLite. Gate predicate `tests_passing` becomes useful in V2 because the server can run gates against ephemeral worktrees.
+*This section originally sketched a V2 server phase (FastAPI + arq worker queue +
+Postgres) and a V3 hosted multi-tenant phase (tenant isolation, SSO, metering, an
+admin UI). **Both were dropped.** SwarmLord shipped as a local, single-user CLI and
+library, and that is the intended final shape. The FastAPI scaffold that reserved
+import paths for the server phase has been removed from the codebase.*
 
-V3 — SaaS: tenant isolation at the storage and worker layers; SSO auth (OIDC); per-tenant secrets; an admin UI (separate front-end repo, likely SvelteKit or Next.js); usage metering and budgets per tenant (lift Paperclip's heartbeat-budget shape); a marketplace surface for shared packet templates and runner profiles. Multi-tenancy is the only real architectural shift V3 introduces; everything else is scaling and polish. Customer-facing surface is `swarmlord.dev` (owned). Suggested subdomain plan: `swarmlord.dev` for the marketing site, `app.swarmlord.dev` for the tenant dashboard, `api.swarmlord.dev` for the V2/V3 HTTP API, `docs.swarmlord.dev` for documentation, `<tenant>.swarmlord.dev` (or path-based `app.swarmlord.dev/<tenant>/`) for tenant-scoped routes — final shape decided when V3 design begins.
+*One idea from that outline is still worth noting: the `tests_passing` gate predicate
+would be most useful evaluated against an ephemeral worktree rather than run in place.
+That remains open as a local-tool improvement — see `AGENTS.md`.*
 
 ## Open Items Resolved In This Spec
 
@@ -501,4 +501,4 @@ V3 — SaaS: tenant isolation at the storage and worker layers; SSO auth (OIDC);
 - The picker is a Python CLI built with Typer.
 - Graphify runs on demand via `swarmlord graphify`. Idea/discovery phases do not auto-run it; auto-run is a V2 enhancement gated by a per-packet flag.
 - Skills are copied on packet creation from `templates/packet/skills/` (no symlinks, no shared registry yet). A skill registry is a V2 enhancement.
-- Project name is **SwarmLord** (locked — domain `swarmlord.dev` is owned). Python package and CLI binary are both `swarmlord`. Folder slug for this packet (`2026-05-sandcastle-like-agent-orchestration`) is preserved as historical trace; the extracted repo is named `swarmlord`.
+- Project name is **SwarmLord** (locked). Python package and CLI binary are both `swarmlord`. Folder slug for this packet (`2026-05-sandcastle-like-agent-orchestration`) is preserved as historical trace; the extracted repo is named `swarmlord`.

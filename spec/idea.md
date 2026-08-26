@@ -1,8 +1,14 @@
 # Idea
 
+> **Historical design record.** This file captures the design as it stood
+> before implementation. It is kept for provenance, not as a live roadmap —
+> where it describes hosted, server, or multi-tenant phases, those were
+> dropped: SwarmLord shipped as a local single-user CLI and stays that way.
+> `README.md` and `AGENTS.md` describe the project as it actually is.
+
 ## Raw Idea
 
-The user wants to set up something like `C:\Users\Inven\Documents\GitHub\sandcastle\README.md` to work through this folder's eventual store of side projects.
+The user wants to set up something like the Sandcastle repo's `README.md` to work through this folder's eventual store of side projects.
 
 The intended flow is:
 

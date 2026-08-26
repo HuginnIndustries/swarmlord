@@ -1,8 +1,14 @@
 # Inspiration Review
 
+> **Historical design record.** This file captures the design as it stood
+> before implementation. It is kept for provenance, not as a live roadmap —
+> where it describes hosted, server, or multi-tenant phases, those were
+> dropped: SwarmLord shipped as a local single-user CLI and stays that way.
+> `README.md` and `AGENTS.md` describe the project as it actually is.
+
 Durable notes on the repos that should inform this packet's build spec. The packet itself was originally framed as "a sandcastle-like" system, but a fair review of the neighboring repos shows the right v1 sits across several of them, not just sandcastle. This file captures what each repo does best, what to borrow, and what to leave out.
 
-Every repo referenced here lives under `C:\Users\Inven\Documents\GitHub\`. None of these are edited from this packet; they are read-only inspiration.
+Every repo referenced here was a local checkout on the author's machine. None of these are edited from this packet; they are read-only inspiration.
 
 ## Sandcastle (TypeScript library)
 

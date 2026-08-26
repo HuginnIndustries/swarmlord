@@ -6,8 +6,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Project scope narrowed to a local, single-user tool.** The planned hosted
+  phases (a V2 FastAPI/worker-queue daemon and a V3 multi-tenant SaaS) are
+  cancelled. SwarmLord is a CLI and Python library you run on your own machine,
+  and that is its final intended shape. `README.md`, `AGENTS.md`, `CLAUDE.md`,
+  `GUIDE.md`, `CONTRIBUTING.md`, `SECURITY.md`, and the feature-request template
+  all state the new scope.
+- `README.md` rewritten for a general open-source audience: leads with what the
+  tool does and how the gate model works, shows real command output, and
+  documents the engineering standards. The v1/v2/v3 roadmap and the
+  `swarmlord.dev` product framing are gone.
+- All documentation examples converted from PowerShell to POSIX shell, and
+  machine-specific paths (`~\Documents\GitHub\...`, `C:\Users\...`) replaced
+  with portable ones.
+- `spec/` is now explicitly labelled a historical design record. Each file
+  carries a banner saying so, and the build spec's "V2 and V3 Outline" section
+  is replaced by a note explaining what was dropped and why.
+
+### Removed
+
+- **The `server/` FastAPI scaffold and the `swarmlord serve` command.** Every
+  route returned 501 and the command exited 2; both existed only to reserve
+  import paths for the cancelled hosted phase. Also removed: the `[server]`
+  optional dependency group (`fastapi`, `uvicorn`), `fastapi` from the dev
+  group, the `server/*` coverage omit, and `test_serve_is_v2_stub`. The test
+  suite is 98 tests; coverage holds at ~85% with the omit gone.
+- A 45 KB terminal-session transcript accidentally committed at the repo root.
+
 ### Added
 
+- `Makefile` — `make check` runs all four quality gates (ruff check, ruff
+  format --check, mypy --strict, pytest --cov) in one command; also `install`,
+  `fmt`, `cov`, and `clean` targets.
 - `LICENSE` (MIT), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor
   Covenant 2.1), and `SECURITY.md` for the open-source release.
 - GitHub issue templates (`bug_report.yml`, `feature_request.yml`),

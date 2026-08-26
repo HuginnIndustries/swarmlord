@@ -32,5 +32,4 @@ In scope:
 Out of scope:
 
 - Third-party runners (`claude`, Sandcastle, `npx`, `tsx`) invoked as subprocesses. Report those upstream.
-- Vulnerabilities that require a malicious local user to already have shell access on the host running SwarmLord — the V1 model trusts the operator's machine.
-- The `server/` FastAPI scaffold, which returns 501 from every endpoint by design and has no behavior to exploit.
+- Vulnerabilities that require a malicious local user to already have shell access on the host running SwarmLord. It is a local single-user tool and trusts the operator's machine.

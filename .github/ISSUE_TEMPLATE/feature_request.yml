@@ -33,4 +33,4 @@ body:
     id: scope
     attributes:
       label: Scope check
-      description: Is this V1, V2, or V3? See the roadmap in `README.md`. V2/V3 features (server bodies, multi-tenancy, hosted SaaS) are tracked separately.
+      description: SwarmLord is a local, single-user CLI. Proposals that make it a hosted service (HTTP server, auth, multi-tenancy) are out of scope — see the Scope section in `README.md`.

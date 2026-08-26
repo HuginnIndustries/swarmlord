@@ -85,7 +85,7 @@ directory containing `./projects/`).
 
 - `0` = success
 - `1` = generic error (schema fail, missing packet, IO error)
-- `2` = gate failure (`promote`), or V2-stub command (`serve`)
+- `2` = gate failure (`promote`) or an unresolvable argument
 
 A successful `promote`'s stdout looks like:
 
