@@ -44,6 +44,10 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: build
+    # Off until a PyPI Trusted Publisher is configured for this repo. Turn it
+    # on by setting the repository variable PYPI_PUBLISH to "true"; until then
+    # the job is skipped, not failed, so tagging a release still works.
+    if: vars.PYPI_PUBLISH == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -62,7 +66,9 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: publish-pypi
+    # Depends on build, not publish-pypi: the GitHub Release is the release
+    # artifact that always ships, whether or not PyPI publishing is enabled.
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -81,5 +87,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for release notes." \
+            --notes "Release notes: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)" \
             dist/*

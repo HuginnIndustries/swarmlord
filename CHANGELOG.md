@@ -34,6 +34,11 @@ Nothing yet.
 - `claude-code-review.yml` now skips bot-authored pull requests. Bot PRs don't
   receive repository secrets, so `CLAUDE_CODE_OAUTH_TOKEN` was empty and the
   job failed on every Dependabot bump.
+- `release.yml` no longer requires PyPI. Publishing is gated behind a
+  `PYPI_PUBLISH` repository variable and skipped by default, and the GitHub
+  Release job now depends on `build` rather than on the publish step — so
+  tagging produces a release with wheel and sdist attached whether or not a
+  PyPI Trusted Publisher is configured.
 
 ### Removed
 
